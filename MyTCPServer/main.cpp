@@ -24,6 +24,7 @@ void service(TCPServer* server, CLIENT client)
 				break;
 			}
 		}
+		//Jutil::getKey<std::string, SOCKET>(users, csock, userName);
 		strcpy_s(pack.message, userName.c_str());
 		server->sendMessage(csock, pack);
 	}
@@ -35,26 +36,70 @@ void service(TCPServer* server, CLIENT client)
 			std::cout << "客户" << csock << "与服务器断开连接" << std::endl;
 			break;
 		}
+
 		switch (header.CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
 		{
 			PrivateMessagePack pack = server->receive<PrivateMessagePack>(csock);
-			csock = pack.targetUID;
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
 			std::cout << "转发私信" << std::endl;
-			server->sendMessage(csock, pack);
+			auto it = users.find(std::string(pack.targetName));
+			server->sendMessage((*it).second, pack);
 			break;
 		}
 		case CMD_MESSAGE:
 		{
 			MessagePack pack = server->receive<MessagePack>(csock);
 			std::cout << "接收到客户端的消息:CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
-			pack.CMD = CMD_MESSAGE;
-			pack.LENGTH = 33;
 			strcpy_s(pack.message, "好的服务器已经收到了您的消息了！");
 			server->sendMessage(csock, pack);
+			break;
+		}
+		case CMD_BROADCAST:
+		{
+			BroadcastPack pack = server->receive<BroadcastPack>(csock);
+			std::cout << "广播消息" << std::endl;
+			pack.CMD = header.CMD;
+			pack.LENGTH = header.LENGTH;
+			for (int i = 0; i < clients.size(); i++)
+			{
+				server->sendMessage(std::get<0>(clients[i]), pack);
+			}
+			break;
+		}
+		case CMD_NAME:
+		{
+			NamePack pack = server->receive<NamePack>(csock);
+			std::string userName = "";
+			bool find = false;
+			for (auto& i : users)
+			{
+				if (i.second == csock)
+				{
+					userName = i.first;
+					users.erase(userName);
+					userName = pack.name;
+					users.insert(std::make_pair(userName, csock));
+					find = true;
+					break;
+				}
+			}
+			if (find)
+			{
+				MessagePack pack;
+				userName = "更名成功，现在的昵称为" + userName;
+				strcpy_s(pack.message, userName.c_str());
+				server->sendMessage(csock, pack);
+			}
+			else
+			{
+				MessagePack pack;
+				userName = "更名失败";
+				strcpy_s(pack.message, userName.c_str());
+				server->sendMessage(csock, pack);
+			}
 			break;
 		}
 		default:
@@ -78,6 +123,7 @@ int main()
 	{
 		CLIENT client = server.acceptClient();
 		users.insert(std::make_pair("user" + std::to_string(std::get<0>(client)), std::get<0>(client)));
+		clients.push_back(client);
 		threads.push_back(std::thread(service, &server, client));
 	}
 	server.terminal();

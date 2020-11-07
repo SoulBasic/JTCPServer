@@ -6,6 +6,8 @@
 #define CMD_LOGIN 101
 #define CMD_MESSAGE 102
 #define CMD_PRIVATEMESSAGE 103
+#define CMD_BROADCAST 104
+#define CMD_NAME 105
 
 
 class Header
@@ -17,8 +19,6 @@ public:
 	Header(int len, int cmd) :LENGTH(len),CMD(cmd){}
 	virtual ~Header(){}
 };
-
-
 
 
 
@@ -65,16 +65,46 @@ public:
 class PrivateMessagePack : public Header
 {
 public:
-	int targetUID;
-	char message[4084];
-	PrivateMessagePack() :targetUID(0)
+	char targetName[32];
+	char message[4052];
+	PrivateMessagePack() 
 	{
+		strcpy_s(targetName, "\0");
 		strcpy_s(message, "\0");
 		LENGTH = sizeof(PrivateMessagePack);
 		CMD = CMD_PRIVATEMESSAGE;
 	}
 };
 
+
+class BroadcastPack : public Header
+{
+public:
+	char message[1012];
+	BroadcastPack()
+	{
+		strcpy_s(message, "\0");
+		LENGTH = sizeof(BroadcastPack);
+		CMD = CMD_BROADCAST;
+	}
+	BroadcastPack(const char* msg)
+	{
+		strcpy_s(message, msg);
+		LENGTH = sizeof(BroadcastPack);
+		CMD = CMD_BROADCAST;
+	}
+};
+
+class NamePack : public Header
+{
+public:
+	char name[32];
+	NamePack()
+	{
+		LENGTH = sizeof(NamePack);
+		CMD = CMD_NAME;
+	}
+};
 
 #endif // !_Pack_HPP_
 

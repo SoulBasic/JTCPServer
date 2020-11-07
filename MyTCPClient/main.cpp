@@ -21,14 +21,26 @@ void getMessage(TCPClient* tc)
 		case CMD_PRIVATEMESSAGE:
 		{
 			PrivateMessagePack pack = tc->receive<PrivateMessagePack>();
-			std::cout << "收到他人发来的私信：" << pack.message << std::endl;
+			std::cout << "收到用户" << pack.targetName << "发来的私信：" << pack.message << std::endl;
 			break;
 		}
 		case CMD_MESSAGE:
 		{
 			MessagePack pack = tc->receive<MessagePack>();
-			std::cout << "接收到服务器的消息:CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
+			std::cout << "接收到服务器的消息:" << pack.message << std::endl;
 			break;
+		}
+		case CMD_BROADCAST:
+		{
+			BroadcastPack pack = tc->receive<BroadcastPack>();
+			std::cout << "接收到广播消息:" << pack.message << std::endl;
+			break;
+		}
+		case CMD_NAME:
+		{
+			NamePack pack = tc->receive<NamePack>();
+			std::cout << "您被服务器更名为:" << pack.name << std::endl;
+			
 		}
 		default:
 		{
@@ -60,21 +72,32 @@ int main()
 			PrivateMessagePack pack;
 			std::cout << "请输入私信对象：";
 			std::cin >> cmd;
-			pack.targetUID = atoi(cmd.c_str());
+			strcpy(pack.targetName, cmd.c_str());
 			std::cout << "请输入私信内容：";
 			std::cin >> cmd;
 			strcpy(pack.message, cmd.c_str());
 			tc.sendMessage(pack);
 		}
-		else
+		else if (cmd == "bc")
 		{
-			MessagePack pack;
-			strcpy(pack.message, cmd.c_str());
+			BroadcastPack pack;
+			std::cout << "请输入广播内容：";
+			std::cin >> cmd;
+			strcpy_s(pack.message, cmd.c_str());
+			tc.sendMessage(pack);
+		}
+		else if (cmd == "name")
+		{
+			NamePack pack;
+			std::cout << "请输入您的昵称：";
+			std::cin >> cmd;
+			strcpy_s(pack.name, cmd.c_str());
 			tc.sendMessage(pack);
 		}
 		
 
 	}
+	std::cout << "程序结束" << std::endl;
 	tc.terminal();
 	::system("pause");
 }
