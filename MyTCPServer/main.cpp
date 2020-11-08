@@ -1,11 +1,44 @@
-ï»¿#include <iostream>
+#include <iostream>
 #include "TCPServer.hpp"
 #include <thread>
 #include <string>
 #include <algorithm>
-#include <Jutil.h>
 #include <unordered_map>
 
+//·Ö¸î×Ö·û´®
+std::vector<std::string> split(std::string str, std::string pattern)
+{
+	std::string::size_type pos;
+	std::vector<std::string> result;
+	str += pattern;//À©Õ¹×Ö·û´®ÒÔ·½±ã²Ù×÷
+	int size = str.size();
+	for (int i = 0; i < size; i++)
+	{
+		pos = str.find(pattern, i);
+		if (pos < size)
+		{
+			std::string s = str.substr(i, pos - i);
+			result.push_back(s);
+			i = pos + pattern.size() - 1;
+		}
+	}
+	return result;
+}
+
+//unordered_map valueÕÒkey
+template<typename keyT, typename valueT>
+bool getKey(std::unordered_map<keyT, valueT>& map, valueT val, keyT& key)
+{
+	for (auto& i : map)
+	{
+		if (i.second == val)
+		{
+			key = i.first;
+			return true;
+		}
+	}
+	return false;
+}
 
 std::vector<CLIENT> clients;
 std::unordered_map<std::string, int>users;
@@ -13,10 +46,10 @@ void service(TCPServer* server, CLIENT client)
 {
 	SOCKET csock = std::get<0>(client);
 	sockaddr_in csin = std::get<1>(client);
-	{//æ¬¢è¿Ž
+	{//»¶Ó­
 		MessagePack pack;
 		std::string userName = "user";
-		Jutil::getKey<std::string, int>(users, csock, userName);
+		getKey<std::string, int>(users, csock, userName);
 		userName = "Welcome to join. Your nickname is " + userName;
 		strcpy(pack.message, userName.c_str());
 		server->sendMessage(csock, pack);
@@ -41,7 +74,7 @@ void service(TCPServer* server, CLIENT client)
 			auto it = users.find(std::string(pack.targetName));
 
 			std::string sourceName = "user";
-			Jutil::getKey<std::string, int>(users, csock, sourceName);
+			getKey<std::string, int>(users, csock, sourceName);
 			strcpy(pack.targetName, sourceName.c_str());
 			if (it != users.end())
 			{

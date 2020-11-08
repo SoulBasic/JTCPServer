@@ -1,9 +1,11 @@
-ï»¿#include <iostream>
+#include <iostream>
 #include "TCPClient.hpp"
 #include <thread>
 #include <string>
 
 bool isRun = false;
+
+
 
 void getMessage(TCPClient* tc)
 {
@@ -12,8 +14,7 @@ void getMessage(TCPClient* tc)
 		Header header = tc->receive<Header>();
 		if (header.CMD <= 0)
 		{
-			std::cout << "Disconnect from server" << std::endl;
-			break;
+			continue;
 		}
 
 		switch (header.CMD)
@@ -21,7 +22,7 @@ void getMessage(TCPClient* tc)
 		case CMD_PRIVATEMESSAGE:
 		{
 			PrivateMessagePack pack = tc->receive<PrivateMessagePack>();
-			std::cout << "Received " << pack.targetName << " Private messageï¼š" << pack.message << std::endl;
+			std::cout << "Received " << pack.targetName << " Private message£º" << pack.message << std::endl;
 			break;
 		}
 		case CMD_MESSAGE:
@@ -57,7 +58,7 @@ int main()
 {
 	TCPClient tc;
 	tc.initSocket();
-	if (-1 == tc.connectServer("192.168.199.132", 2324))
+	if (-1 == tc.connectServer("192.168.199.132", 2325))
 	{
 		return -1;
 	}
@@ -70,10 +71,10 @@ int main()
 		if (cmd == "cpm")
 		{
 			PrivateMessagePack pack;
-			std::cout << "Please enter private message targetNameï¼š";
+			std::cout << "Please enter private message targetName£º";
 			std::cin >> cmd;
 			strcpy(pack.targetName, cmd.c_str());
-			std::cout << "Please enter the private messageï¼š";
+			std::cout << "Please enter the private message£º";
 			std::cin >> cmd;
 			strcpy(pack.message, cmd.c_str());
 			tc.sendMessage(pack);
@@ -81,7 +82,7 @@ int main()
 		else if (cmd == "bc")
 		{
 			BroadcastPack pack;
-			std::cout << "Please input broadcast contentï¼š";
+			std::cout << "Please input broadcast content£º";
 			std::cin >> cmd;
 			strcpy(pack.message, cmd.c_str());
 			tc.sendMessage(pack);
@@ -89,7 +90,7 @@ int main()
 		else if (cmd == "name")
 		{
 			NamePack pack;
-			std::cout << "Enter your nickname ï¼š";
+			std::cout << "Enter your nickname £º";
 			std::cin >> cmd;
 			strcpy(pack.name, cmd.c_str());
 			tc.sendMessage(pack);

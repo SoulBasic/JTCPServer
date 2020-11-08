@@ -124,6 +124,7 @@ public:
 	PackType receive()
 	{
 		PackType buf;
+		auto sz = sizeof(Header);
 		if (sizeof(PackType) == sizeof(Header))
 		{
 			recv(csock, (char*)&buf, sizeof(buf), 0);

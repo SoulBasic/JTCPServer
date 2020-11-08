@@ -15,9 +15,7 @@ class Header
 public:
 	int LENGTH;
 	int CMD;
-	Header() :LENGTH(0), CMD(0){}
-	Header(int len, int cmd) :LENGTH(len),CMD(cmd){}
-	virtual ~Header(){}
+	Header() :LENGTH(0), CMD(0) {}
 };
 
 
@@ -34,7 +32,7 @@ public:
 		LENGTH = sizeof(LoginPack);
 		CMD = CMD_LOGIN;
 	}
-	LoginPack(char un[32],char pw[32])
+	LoginPack(char un[32], char pw[32])
 	{
 		strcpy(userName, un);
 		strcpy(passWord, pw);
@@ -47,7 +45,7 @@ public:
 class MessagePack : public Header
 {
 public:
-	char message[1012];
+	char message[1016];
 	MessagePack()
 	{
 		strcpy(message, "\0");
@@ -66,8 +64,8 @@ class PrivateMessagePack : public Header
 {
 public:
 	char targetName[32];
-	char message[4052];
-	PrivateMessagePack() 
+	char message[4056];
+	PrivateMessagePack()
 	{
 		strcpy(targetName, "\0");
 		strcpy(message, "\0");
@@ -80,7 +78,7 @@ public:
 class BroadcastPack : public Header
 {
 public:
-	char message[1012];
+	char message[1016];
 	BroadcastPack()
 	{
 		strcpy(message, "\0");

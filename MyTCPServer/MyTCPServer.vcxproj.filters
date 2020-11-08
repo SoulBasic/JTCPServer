@@ -18,18 +18,12 @@
     <ClInclude Include="TCPServer.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="F:\lib\Jutil\Jutil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="..\Pack.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="F:\lib\Jutil\Jutil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

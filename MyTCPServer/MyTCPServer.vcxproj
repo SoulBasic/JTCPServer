@@ -153,12 +153,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="F:\lib\Jutil\Jutil.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Pack.hpp" />
-    <ClInclude Include="F:\lib\Jutil\Jutil.h" />
     <ClInclude Include="TCPServer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
