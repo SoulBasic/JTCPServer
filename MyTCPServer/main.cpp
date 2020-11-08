@@ -17,7 +17,7 @@ void service(TCPServer* server, CLIENT client)
 		MessagePack pack;
 		std::string userName = "user";
 		Jutil::getKey<std::string, int>(users, csock, userName);
-		userName = "欢迎加入,您的昵称是 " + userName;
+		userName = "Welcome to join. Your nickname is " + userName;
 		strcpy(pack.message, userName.c_str());
 		server->sendMessage(csock, pack);
 	}
@@ -26,7 +26,7 @@ void service(TCPServer* server, CLIENT client)
 		Header header = server->receive<Header>(csock);
 		if (header.CMD <= 0)
 		{
-			std::cout << "客户" << csock << "与服务器断开连接" << std::endl;
+			std::cout << "client " << csock << " Disconnect from server" << std::endl;
 			break;
 		}
 
@@ -37,7 +37,7 @@ void service(TCPServer* server, CLIENT client)
 			PrivateMessagePack pack = server->receive<PrivateMessagePack>(csock);
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
-			std::cout << "转发私信" << std::endl;
+			std::cout << "Forward private message " << std::endl;
 			auto it = users.find(std::string(pack.targetName));
 
 			std::string sourceName = "user";
@@ -55,15 +55,15 @@ void service(TCPServer* server, CLIENT client)
 			MessagePack pack = server->receive<MessagePack>(csock);
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
-			std::cout << "接收到客户端的消息:CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
-			strcpy(pack.message, "好的服务器已经收到了您的消息了！");
+			std::cout << "Message received from client :CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
+			strcpy(pack.message, "OK, the server has received your message!");
 			server->sendMessage(csock, pack);
 			break;
 		}
 		case CMD_BROADCAST:
 		{
 			BroadcastPack pack = server->receive<BroadcastPack>(csock);
-			std::cout << "广播消息" << std::endl;
+			std::cout << "Broadcast news" << std::endl;
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
 			for (int i = 0; i < clients.size(); i++)
@@ -92,14 +92,14 @@ void service(TCPServer* server, CLIENT client)
 			if (find)
 			{
 				MessagePack pack;
-				userName = "更名成功，现在的昵称为" + userName;
+				userName = "The name has been changed successfully, and the nickname is now " + userName;
 				strcpy(pack.message, userName.c_str());
 				server->sendMessage(csock, pack);
 			}
 			else
 			{
 				MessagePack pack;
-				userName = "更名失败";
+				userName = "Failed to rename";
 				strcpy(pack.message, userName.c_str());
 				server->sendMessage(csock, pack);
 			}
@@ -107,7 +107,7 @@ void service(TCPServer* server, CLIENT client)
 		}
 		default:
 		{
-			std::cout << "无法解析的消息:CMD=" << header.CMD << std::endl;
+			std::cout << "Unresolved message:CMD=" << header.CMD << std::endl;
 			break;
 		}
 		}

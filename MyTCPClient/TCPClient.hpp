@@ -32,11 +32,11 @@ public:
 		WSADATA data;
 		if (SOCKET_ERROR == WSAStartup(version, &data))
 		{
-			std::cout << "初始化WINSOCK环境失败" << std::endl;
+			std::cout << "Failed to initialize Winsock environment" << std::endl;
 		}
 		else
 		{
-			std::cout << "初始化WINSOCK环境成功!" << std::endl;
+			std::cout << "Successfully initialized Winsock environment!" << std::endl;
 		}
 #endif 
 	}
@@ -53,12 +53,12 @@ public:
 		csock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "初始化客户端失败" << std::endl;
+			std::cout << "Failed to initialize client" << std::endl;
 			return CLIENT_ERROR;
 		}
 		else
 		{
-			std::cout << "初始化客户端成功!" << std::endl;
+			std::cout << "Client initialization successful!" << std::endl;
 		}
 		return CLIENT_SUCCESS;
 	}
@@ -67,7 +67,7 @@ public:
 	{
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "套接字未初始化或无效" << std::endl;
+			std::cout << "Socket is not initialized or invalid" << std::endl;
 			return CLIENT_ERROR;
 		}
 		ssin.sin_family = AF_INET;
@@ -81,12 +81,12 @@ public:
 		int res = connect(csock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "连接服务器失败" << std::endl;
+			std::cout << "Failed to connect to the server" << std::endl;
 			return CLIENT_ERROR;
 		}
 		else
 		{
-			std::cout << "连接服务器成功!" << std::endl;
+			std::cout << "Successfully connected to the server!" << std::endl;
 		}
 		return CLIENT_SUCCESS;
 	}
@@ -107,13 +107,13 @@ public:
 	{
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "套接字未初始化或无效" << std::endl;
+			std::cout << "Socket is not initialized or invalid" << std::endl;
 			return CLIENT_ERROR;
 		}
 		int res = send(csock, (const char*)&msg, sizeof(msg), 0);
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "发送数据包失败" << std::endl;
+			std::cout << "Sending packet failed" << std::endl;
 			return CLIENT_ERROR;
 		}
 		return CLIENT_SUCCESS;

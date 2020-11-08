@@ -1,7 +1,7 @@
 #ifndef _Pack_HPP_
 #define _Pack_HPP_
 #include <iostream>
-#include <string>
+#include <cstring>
 
 #define CMD_LOGIN 101
 #define CMD_MESSAGE 102
@@ -29,15 +29,15 @@ public:
 	char passWord[32];
 	LoginPack()
 	{
-		strcpy_s(userName, "\0");
-		strcpy_s(passWord, "\0");
+		strcpy(userName, "\0");
+		strcpy(passWord, "\0");
 		LENGTH = sizeof(LoginPack);
 		CMD = CMD_LOGIN;
 	}
 	LoginPack(char un[32],char pw[32])
 	{
-		strcpy_s(userName, un);
-		strcpy_s(passWord, pw);
+		strcpy(userName, un);
+		strcpy(passWord, pw);
 		LENGTH = sizeof(LoginPack);
 		CMD = CMD_LOGIN;
 	}
@@ -50,13 +50,13 @@ public:
 	char message[1012];
 	MessagePack()
 	{
-		strcpy_s(message, "\0");
+		strcpy(message, "\0");
 		LENGTH = sizeof(MessagePack);
 		CMD = CMD_MESSAGE;
 	}
 	MessagePack(const char* msg)
 	{
-		strcpy_s(message, msg);
+		strcpy(message, msg);
 		LENGTH = sizeof(MessagePack);
 		CMD = CMD_MESSAGE;
 	}
@@ -69,8 +69,8 @@ public:
 	char message[4052];
 	PrivateMessagePack() 
 	{
-		strcpy_s(targetName, "\0");
-		strcpy_s(message, "\0");
+		strcpy(targetName, "\0");
+		strcpy(message, "\0");
 		LENGTH = sizeof(PrivateMessagePack);
 		CMD = CMD_PRIVATEMESSAGE;
 	}
@@ -83,13 +83,13 @@ public:
 	char message[1012];
 	BroadcastPack()
 	{
-		strcpy_s(message, "\0");
+		strcpy(message, "\0");
 		LENGTH = sizeof(BroadcastPack);
 		CMD = CMD_BROADCAST;
 	}
 	BroadcastPack(const char* msg)
 	{
-		strcpy_s(message, msg);
+		strcpy(message, msg);
 		LENGTH = sizeof(BroadcastPack);
 		CMD = CMD_BROADCAST;
 	}

@@ -60,22 +60,22 @@ public:
 		WSADATA data;
 		if (SOCKET_ERROR == WSAStartup(version, &data))
 		{
-			std::cout << "初始化WINSOCK环境失败" << std::endl;
+			std::cout << "Failed to initialize Winsock environment" << std::endl;
 		}
 		else
 		{
-			std::cout << "初始化WINSOCK环境成功!" << std::endl;
+			std::cout << "Successfully initialized Winsock environment!" << std::endl;
 		}
 #endif 
 		ssock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "初始化服务器失败" << std::endl;
+			std::cout << "Failed to initialize the server" << std::endl;
 			return CMD_ERROR;
 		}
 		else
 		{
-			std::cout << "初始化服务器成功!" << std::endl;
+			std::cout << "Initialization of server succeeded!" << std::endl;
 		}
 		return CMD_SUCCESS;
 	}
@@ -85,7 +85,7 @@ public:
 	{
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "套接字未初始化或无效" << std::endl;
+			std::cout << "Socket is not initialized or invalid" << std::endl;
 			return CMD_ERROR;
 		}
 		ssin.sin_family = AF_INET;
@@ -98,22 +98,22 @@ public:
 		int res = bind(ssock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "绑定端口失败" << std::endl;
+			std::cout << "Failed to bind port" << std::endl;
 			return CMD_ERROR;
 		}
 		else
 		{
-			std::cout << "绑定端口成功!" << std::endl;
+			std::cout << "Port bound successfully!" << std::endl;
 		}
 
 		if (SOCKET_ERROR == listen(ssock, 5))
 		{
-			std::cout << "监听端口失败" << std::endl;
+			std::cout << "Listening port failed" << std::endl;
 			return -1;
 		}
 		else
 		{
-			std::cout << "监听端口成功!" << std::endl;
+			std::cout << "Listening port succeeded!" << std::endl;
 		}
 
 		return CMD_SUCCESS;
@@ -147,11 +147,11 @@ public:
 
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "客户端套接字无效" << std::endl;
+			std::cout << "Invalid client socket" << std::endl;
 		}
 		else
 		{
-			std::cout << "新客户端连接 SOCKET:"<< csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
+			std::cout << "New client connected SOCKET:"<< csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 		}
 		return std::make_tuple(csock, csin);
 
@@ -163,13 +163,13 @@ public:
 	{
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "服务器套接字未初始化或无效" << std::endl;
+			std::cout << "The server socket is not initialized or invalid" << std::endl;
 			return CMD_ERROR;
 		}
 		int res = send(csock, (const char*)&msg, sizeof(msg), 0);
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "发送数据包失败" << std::endl;
+			std::cout << "Sending packet failed" << std::endl;
 			return CMD_ERROR;
 		}
 		return CMD_SUCCESS;
