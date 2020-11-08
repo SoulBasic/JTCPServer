@@ -83,7 +83,7 @@ int main()
 			BroadcastPack pack;
 			std::cout << "请输入广播内容：";
 			std::cin >> cmd;
-			strcpy_s(pack.message, cmd.c_str());
+			strcpy(pack.message, cmd.c_str());
 			tc.sendMessage(pack);
 		}
 		else if (cmd == "name")
@@ -91,7 +91,13 @@ int main()
 			NamePack pack;
 			std::cout << "请输入您的昵称：";
 			std::cin >> cmd;
-			strcpy_s(pack.name, cmd.c_str());
+			strcpy(pack.name, cmd.c_str());
+			tc.sendMessage(pack);
+		}
+		else
+		{
+			MessagePack pack;
+			strcpy(pack.message, cmd.c_str());
 			tc.sendMessage(pack);
 		}
 		

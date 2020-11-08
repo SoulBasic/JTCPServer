@@ -16,16 +16,9 @@ void service(TCPServer* server, CLIENT client)
 	{//欢迎
 		MessagePack pack;
 		std::string userName = "user";
-		for (auto& i : users)
-		{
-			if (i.second == csock)
-			{
-				userName = i.first;
-				break;
-			}
-		}
-		//Jutil::getKey<std::string, SOCKET>(users, csock, userName);
-		strcpy_s(pack.message, userName.c_str());
+		Jutil::getKey<std::string, int>(users, csock, userName);
+		userName = "欢迎加入,您的昵称是 " + userName;
+		strcpy(pack.message, userName.c_str());
 		server->sendMessage(csock, pack);
 	}
 	while (true)
@@ -46,14 +39,24 @@ void service(TCPServer* server, CLIENT client)
 			pack.LENGTH = header.LENGTH;
 			std::cout << "转发私信" << std::endl;
 			auto it = users.find(std::string(pack.targetName));
-			server->sendMessage((*it).second, pack);
+
+			std::string sourceName = "user";
+			Jutil::getKey<std::string, int>(users, csock, sourceName);
+			strcpy(pack.targetName, sourceName.c_str());
+			if (it != users.end())
+			{
+				server->sendMessage((*it).second, pack);
+			}
+
 			break;
 		}
 		case CMD_MESSAGE:
 		{
 			MessagePack pack = server->receive<MessagePack>(csock);
+			pack.CMD = header.CMD;
+			pack.LENGTH = header.LENGTH;
 			std::cout << "接收到客户端的消息:CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
-			strcpy_s(pack.message, "好的服务器已经收到了您的消息了！");
+			strcpy(pack.message, "好的服务器已经收到了您的消息了！");
 			server->sendMessage(csock, pack);
 			break;
 		}
@@ -90,14 +93,14 @@ void service(TCPServer* server, CLIENT client)
 			{
 				MessagePack pack;
 				userName = "更名成功，现在的昵称为" + userName;
-				strcpy_s(pack.message, userName.c_str());
+				strcpy(pack.message, userName.c_str());
 				server->sendMessage(csock, pack);
 			}
 			else
 			{
 				MessagePack pack;
 				userName = "更名失败";
-				strcpy_s(pack.message, userName.c_str());
+				strcpy(pack.message, userName.c_str());
 				server->sendMessage(csock, pack);
 			}
 			break;
