@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TCPServer.hpp">
+    <ClInclude Include="TCPClient.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\Pack.hpp">
@@ -23,7 +23,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="client.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

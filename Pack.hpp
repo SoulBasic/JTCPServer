@@ -18,9 +18,17 @@ public:
 	Header() :LENGTH(0), CMD(0) {}
 };
 
+class Pack
+{
+public:
+	int LENGTH;
+	int CMD;
+	Pack() :LENGTH(0), CMD(0) {}
+};
 
 
-class LoginPack : public Header
+
+class LoginPack : public Pack
 {
 public:
 	char userName[32];
@@ -42,7 +50,7 @@ public:
 };
 
 
-class MessagePack : public Header
+class MessagePack : public Pack
 {
 public:
 	char message[1016];
@@ -60,7 +68,7 @@ public:
 	}
 };
 
-class PrivateMessagePack : public Header
+class PrivateMessagePack : public Pack
 {
 public:
 	char targetName[32];
@@ -75,7 +83,7 @@ public:
 };
 
 
-class BroadcastPack : public Header
+class BroadcastPack : public Pack
 {
 public:
 	char message[1016];
@@ -93,7 +101,7 @@ public:
 	}
 };
 
-class NamePack : public Header
+class NamePack : public Pack
 {
 public:
 	char name[32];
