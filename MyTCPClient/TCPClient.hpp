@@ -22,11 +22,46 @@
 
 class TCPClient
 {
+private:
+	SOCKET csock;
+	sockaddr_in ssin;
+public:
+	void setSsin(const char* ip, unsigned short port)
+	{
+		ssin = {};
+		ssin.sin_family = AF_INET;
+		ssin.sin_port = htons(port);
+#ifdef _WIN32
+		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
+#else
+		ssin.sin_addr.s_addr = inet_addr(ip);
+#endif 
+	}
 public:
 	TCPClient()
 	{
 		csock = INVALID_SOCKET;
 		ssin = {};
+	}
+	TCPClient(const char* ip, unsigned short port)
+	{
+		csock = INVALID_SOCKET;
+		ssin = {};
+		ssin.sin_family = AF_INET;
+		ssin.sin_port = htons(port);
+#ifdef _WIN32
+		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
+#else
+		ssin.sin_addr.s_addr = inet_addr(ip);
+#endif 
+	}
+	~TCPClient()
+	{
+		terminal();
+	}
+
+	int initSocket()
+	{
 #ifdef _WIN32
 		WORD version = MAKEWORD(2, 2);
 		WSADATA data;
@@ -39,17 +74,6 @@ public:
 			std::cout << "Successfully initialized Winsock environment!" << std::endl;
 		}
 #endif 
-	}
-	~TCPClient()
-	{
-		terminal();
-#ifdef _WIN32
-		WSACleanup();
-#endif 
-	}
-
-	int initSocket()
-	{
 		csock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == csock)
 		{
@@ -63,21 +87,13 @@ public:
 		return CLIENT_SUCCESS;
 	}
 
-	int connectServer(const char* ip, unsigned short port)
+	int connectServer()
 	{
 		if (INVALID_SOCKET == csock)
 		{
 			std::cout << "Socket is not initialized or invalid" << std::endl;
 			return CLIENT_ERROR;
 		}
-		ssin.sin_family = AF_INET;
-		ssin.sin_port = htons(port);
-#ifdef _WIN32
-		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
-#else
-		ssin.sin_addr.s_addr = inet_addr(ip);
-#endif 
-
 		int res = connect(csock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
@@ -100,6 +116,9 @@ public:
 		close(csock);
 #endif 
 		csock = INVALID_SOCKET;
+#ifdef _WIN32
+		WSACleanup();
+#endif 
 	}
 
 	template<typename PackType>
@@ -121,24 +140,28 @@ public:
 
 
 	template<typename PackType>
-	PackType receive()
+	bool receive(PackType& buf)
 	{
-		PackType buf;
 		auto sz = sizeof(Header);
 		if (sizeof(PackType) == sizeof(Header))
 		{
-			recv(csock, (char*)&buf, sizeof(buf), 0);
+			if (recv(csock, (char*)&buf, sizeof(buf), 0) <= 0)
+			{
+				return false;
+			}
 		}
 		else
 		{
-			recv(csock, (char*)&buf + sizeof(Header), sizeof(buf) - sizeof(Header), 0);
+			if (recv(csock, (char*)&buf + sizeof(Header), sizeof(buf) - sizeof(Header), 0) <= 0)
+			{
+				return false;
+			}
 		}
-		return buf;
+		return true;
+		
 	}
 
-private:
-	SOCKET csock;
-	sockaddr_in ssin;
+
 
 };
 

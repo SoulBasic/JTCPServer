@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <unordered_map>
+#include <algorithm>
 
 //·Ö¸î×Ö·û´®
 std::vector<std::string> split(std::string str, std::string pattern)
@@ -56,18 +57,29 @@ void service(TCPServer* server, CLIENT client)
 	}
 	while (true)
 	{
-		Header header = server->receive<Header>(csock);
-		if (header.CMD <= 0)
+		Header header;
+		if (!server->receive<Header>(csock, header))
 		{
 			std::cout << "client " << csock << " Disconnect from server" << std::endl;
+			for (auto it = clients.begin(); it < clients.end(); it++)
+			{
+				if (std::get<0>(*it) == csock)
+				{
+					clients.erase(it);
+					break;
+				}
+			}
+			std::string name;
+			getKey<std::string, int>(users, csock, name);
+			users.erase(name);
 			break;
 		}
-
 		switch (header.CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
 		{
-			PrivateMessagePack pack = server->receive<PrivateMessagePack>(csock);
+			PrivateMessagePack pack;
+			server->receive<PrivateMessagePack>(csock, pack);
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
 			std::cout << "Forward private message " << std::endl;
@@ -85,7 +97,8 @@ void service(TCPServer* server, CLIENT client)
 		}
 		case CMD_MESSAGE:
 		{
-			MessagePack pack = server->receive<MessagePack>(csock);
+			MessagePack pack;
+			server->receive<MessagePack>(csock, pack);
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
 			std::cout << "Message received from client :CMD=" << header.CMD << " LENGTH=" << header.LENGTH << " DATA=" << pack.message << std::endl;
@@ -95,7 +108,8 @@ void service(TCPServer* server, CLIENT client)
 		}
 		case CMD_BROADCAST:
 		{
-			BroadcastPack pack = server->receive<BroadcastPack>(csock);
+			BroadcastPack pack;
+			server->receive<BroadcastPack>(csock, pack);
 			std::cout << "Broadcast news" << std::endl;
 			pack.CMD = header.CMD;
 			pack.LENGTH = header.LENGTH;
@@ -107,7 +121,8 @@ void service(TCPServer* server, CLIENT client)
 		}
 		case CMD_NAME:
 		{
-			NamePack pack = server->receive<NamePack>(csock);
+			NamePack pack;
+			server->receive<NamePack>(csock, pack);
 			std::string userName = "";
 			bool find = false;
 			for (auto& i : users)

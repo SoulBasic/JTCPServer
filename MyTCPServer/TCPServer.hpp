@@ -177,18 +177,23 @@ public:
 
 	//接收消息
 	template<typename PackType>
-	PackType receive(SOCKET csock)
+	bool receive(SOCKET csock, PackType& buf)
 	{
-		PackType buf;
 		if (sizeof(PackType) == sizeof(Header))
 		{
-			recv(csock, (char*)&buf, sizeof(buf), 0);
+			if (recv(csock, (char*)&buf, sizeof(buf), 0) <= 0)
+			{
+				return false;
+			}
 		}
 		else
 		{
-			recv(csock, (char*)&buf + sizeof(Header), sizeof(buf) - sizeof(Header), 0);
+			if (recv(csock, (char*)&buf + sizeof(Header), sizeof(buf) - sizeof(Header), 0) <= 0)
+			{
+				return false;
+			}
 		}
-		return buf;
+		return true;
 	}
 
 };

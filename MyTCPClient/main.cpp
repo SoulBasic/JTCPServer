@@ -11,35 +11,39 @@ void getMessage(TCPClient* tc)
 {
 	while (true)
 	{
-		Header header = tc->receive<Header>();
-		if (header.CMD <= 0)
+		Header header;
+		if (!tc->receive<Header>(header))
 		{
-			continue;
+			std::cout << "Disconnected form server" << std::endl;
+			break;
 		}
-
 		switch (header.CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
 		{
-			PrivateMessagePack pack = tc->receive<PrivateMessagePack>();
+			PrivateMessagePack pack;
+			tc->receive<PrivateMessagePack>(pack);
 			std::cout << "Received " << pack.targetName << " Private message£º" << pack.message << std::endl;
 			break;
 		}
 		case CMD_MESSAGE:
 		{
-			MessagePack pack = tc->receive<MessagePack>();
+			MessagePack pack;
+			tc->receive<MessagePack>(pack);
 			std::cout << "Message received from server:" << pack.message << std::endl;
 			break;
 		}
 		case CMD_BROADCAST:
 		{
-			BroadcastPack pack = tc->receive<BroadcastPack>();
+			BroadcastPack pack;
+			tc->receive<BroadcastPack>(pack);
 			std::cout << "Received broadcast message:" << pack.message << std::endl;
 			break;
 		}
 		case CMD_NAME:
 		{
-			NamePack pack = tc->receive<NamePack>();
+			NamePack pack;
+			tc->receive<NamePack>(pack);
 			std::cout << "You have been renamed by the server to:" << pack.name << std::endl;
 			
 		}
@@ -56,13 +60,24 @@ void getMessage(TCPClient* tc)
 
 int main()
 {
-	TCPClient tc;
+	TCPClient tc("127.0.0.1", 2324);
 	tc.initSocket();
-	if (-1 == tc.connectServer("192.168.199.132", 2325))
+	if (-1 == tc.connectServer())
 	{
 		return -1;
 	}
 	std::thread t1(getMessage, &tc);
+	//int count = 0;
+	//while (true)
+	//{
+	//	std::string cmd = std::to_string(count++);
+	//	MessagePack pack;
+	//	strcpy(pack.message, cmd.c_str());
+	//	tc.sendMessage(pack);
+	//	Sleep(10);
+	//	if (count >= 10000)break;
+	//}
+	
 	while (true)
 	{
 		std::string cmd;
