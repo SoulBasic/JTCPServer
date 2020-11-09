@@ -327,8 +327,8 @@ public:
 		}
 		case CMD_TEST:
 		{
-			TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
-			sendMessage(c->getSock(), &pack);
+			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
+			//sendMessage(c->getSock(), &pack);
 			break;
 		}
 		default:

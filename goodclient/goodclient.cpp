@@ -10,7 +10,7 @@
 
 
 const int clientNum = 1000;
-const int threadNum = 4;
+const int threadNum = 1;
 bool running = false;
 
 
@@ -79,13 +79,13 @@ void recvThread(TCPClient* c)
 	running = false;
 }
 
-void sendThread(TCPClient* c)
+void sendThread(int id)
 {
+	
 	while (running)
 	{
 		TestPack pack("这等级的哇大无多安慰大武当阿达啊我打完的啊哦的旧爱为大我觉得加我激动阿达基调哦对马咯打我一等奖我安慰奖do我案件我一到家");
 		c->sendMessage(&pack);
-		Sleep(5);
 	}
 
 }
