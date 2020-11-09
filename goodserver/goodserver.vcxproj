@@ -50,7 +50,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -157,8 +157,8 @@
     <ClCompile Include="goodserver.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\celltimestamp.hpp" />
     <ClInclude Include="..\Pack.hpp" />
-    <ClInclude Include="JLog.hpp" />
     <ClInclude Include="selectTCPServer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

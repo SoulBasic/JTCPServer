@@ -10,7 +10,7 @@
 
 
 const int clientNum = 1000;
-const int threadNum = 2;
+const int threadNum = 1;
 bool running = false;
 
 
@@ -91,7 +91,7 @@ void sendThread(TCPClient* c)
 
 int main()
 {
-	TCPClient c("149.28.24.77", 2324);
+	TCPClient c("192.168.199.132", 2324);
 	c.initSocket();
 	if (CLIENT_ERROR == c.connectServer()) return -1;
 

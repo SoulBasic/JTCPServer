@@ -26,7 +26,7 @@
     <ClInclude Include="..\Pack.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="JLog.hpp">
+    <ClInclude Include="..\celltimestamp.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,4 +1,4 @@
-#ifndef _SELECTTCPServer_HPP_
+ï»¿#ifndef _SELECTTCPServer_HPP_
 #define _SELECTTCPServer_HPP_
 
 #include <iostream>
@@ -7,15 +7,18 @@
 #include <algorithm>
 
 #include <string>
+
 #ifdef _WIN32
 	#include <WinSock2.h>
 	#include <Windows.h>
 	#include "../Pack.hpp"
+	#include "../CELLTimestamp.hpp"
 #else//Linux
 	#include <unistd.h>
 	#include <arpa/inet.h>
 	#include <string.h>
 	#include "Pack.hpp"	
+	#include "CELLTimestamp.hpp"
 	#define SOCKET int
 	#define INVALID_SOCKET  (SOCKET)(~0)
 	#define SOCKET_ERROR            (-1)
@@ -60,8 +63,9 @@ private:
 	fd_set fdRead;
 	fd_set fdWrite;
 	fd_set fdExp;
-
 	char recvBuf[RECV_BUF_SIZE] = {};
+	CELLTimestamp timeStamp;
+	int recvPackCount;
 public:
 	std::vector<CLIENT*> clients;
 	inline SOCKET getSocket() { return ssock; }
@@ -69,11 +73,12 @@ public:
 	TCPServer(const TCPServer& other) = delete;
 	const TCPServer& operator=(const TCPServer& other) = delete;
 public:
-	//³õÊ¼»¯win»·¾³
+	//åˆå§‹åŒ–winç¯å¢ƒ
 	explicit inline TCPServer()
 	{
 		ssock = INVALID_SOCKET;
 		ssin = {};
+		recvPackCount = 0;
 		
 	}
 
@@ -82,10 +87,10 @@ public:
 		terminal();
 	}
 
-	//ÅĞ¶Ï·şÎñÆ÷ÊÇ·ñÕı³£ÔËĞĞÖĞ
+	//åˆ¤æ–­æœåŠ¡å™¨æ˜¯å¦æ­£å¸¸è¿è¡Œä¸­
 	inline bool active() { return ssock != INVALID_SOCKET; }
 
-	//³õÊ¼»¯socket
+	//åˆå§‹åŒ–socket
 	int initSocket()
 	{
 #ifdef _WIN32
@@ -93,32 +98,32 @@ public:
 		WSADATA data;
 		if (SOCKET_ERROR == WSAStartup(version, &data))
 		{
-			std::cout << "³õÊ¼»¯Winsock»·¾³Ê§°Ü" << std::endl;
+			std::cout << "åˆå§‹åŒ–Winsockç¯å¢ƒå¤±è´¥" << std::endl;
 		}
 		else
 		{
-			std::cout << "ÒÑ³É¹¦³õÊ¼»¯Winsock»·¾³!" << std::endl;
+			std::cout << "å·²æˆåŠŸåˆå§‹åŒ–Winsockç¯å¢ƒ!" << std::endl;
 		}
 #endif 
 		ssock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "³õÊ¼»¯·şÎñÆ÷Ê§°Ü" << std::endl;
+			std::cout << "åˆå§‹åŒ–æœåŠ¡å™¨å¤±è´¥" << std::endl;
 			return CMD_ERROR;
 		}
 		else
 		{
-			std::cout << "·şÎñÆ÷³õÊ¼»¯³É¹¦!" << std::endl;
+			std::cout << "æœåŠ¡å™¨åˆå§‹åŒ–æˆåŠŸ!" << std::endl;
 		}
 		return CMD_SUCCESS;
 	}
 
-	//°ó¶¨²¢¼àÌı¶Ë¿Ú
+	//ç»‘å®šå¹¶ç›‘å¬ç«¯å£
 	int bindServer(const char* ip, unsigned short port)
 	{
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "Ì×½Ó×ÖÎ´³õÊ¼»¯»òÎŞĞ§" << std::endl;
+			std::cout << "å¥—æ¥å­—æœªåˆå§‹åŒ–æˆ–æ— æ•ˆ" << std::endl;
 			return CMD_ERROR;
 		}
 		ssin.sin_family = AF_INET;
@@ -131,22 +136,22 @@ public:
 		int res = bind(ssock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "°ó¶¨¶Ë¿ÚÊ§°Ü" << std::endl;
+			std::cout << "ç»‘å®šç«¯å£å¤±è´¥" << std::endl;
 			return CMD_ERROR;
 		}
 		else
 		{
-			std::cout << "¶Ë¿Ú°ó¶¨³É¹¦!" << std::endl;
+			std::cout << "ç«¯å£ç»‘å®šæˆåŠŸ!" << std::endl;
 		}
 
 		if (SOCKET_ERROR == listen(ssock, 5))
 		{
-			std::cout << "ÕìÌı¶Ë¿ÚÊ§°Ü" << std::endl;
+			std::cout << "ä¾¦å¬ç«¯å£å¤±è´¥" << std::endl;
 			return -1;
 		}
 		else
 		{
-			std::cout << "ÕìÌı¶Ë¿Ú³É¹¦!" << std::endl;
+			std::cout << "ä¾¦å¬ç«¯å£æˆåŠŸ!" << std::endl;
 		}
 
 		return CMD_SUCCESS;
@@ -174,11 +179,11 @@ public:
 		//std::cout << "select result = " << res << " num = " << num++ << std::endl;
 		if (res < 0)
 		{
-			std::cout << "selectÄ£ĞÍÎ´Öª´íÎó£¬ÈÎÎñ½áÊø" << std::endl;
+			std::cout << "selectæ¨¡å‹æœªçŸ¥é”™è¯¯ï¼Œä»»åŠ¡ç»“æŸ" << std::endl;
 			terminal();
 			return false;
 		}
-		if (FD_ISSET(ssock, &fdRead))//ĞÂ¿Í»§¼ÓÈë
+		if (FD_ISSET(ssock, &fdRead))//æ–°å®¢æˆ·åŠ å…¥
 		{
 			acceptClient();
 			FD_CLR(ssock, &fdRead);
@@ -196,30 +201,30 @@ public:
 		return true;
 	}
 
-	//¸ø¿Í»§¶Ë·¢ÏûÏ¢
+	//ç»™å®¢æˆ·ç«¯å‘æ¶ˆæ¯
 	template<typename PackType>
 	int sendMessage(SOCKET csock, PackType* msg)
 	{
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "·şÎñÆ÷Ì×½Ó×ÖÎ´³õÊ¼»¯»òÎŞĞ§" << std::endl;
+			std::cout << "æœåŠ¡å™¨å¥—æ¥å­—æœªåˆå§‹åŒ–æˆ–æ— æ•ˆ" << std::endl;
 			return CMD_ERROR;
 		}
 		int res = send(csock, (const char*)msg, sizeof(PackType), 0);
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "·¢ËÍÊı¾İ°üÊ§°Ü" << std::endl;
+			std::cout << "å‘é€æ•°æ®åŒ…å¤±è´¥" << std::endl;
 			return CMD_ERROR;
 		}
 		else
 		{
 
-			//std::cout << "·¢ËÍÊı¾İ°üto(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
+			//std::cout << "å‘é€æ•°æ®åŒ…to(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
 		}
 		return CMD_SUCCESS;
 	}
 
-	//¹Ø±Õsocket
+	//å…³é—­socket
 	void terminal()
 	{
 		if (INVALID_SOCKET == ssock)return;
@@ -245,12 +250,19 @@ public:
 
 	virtual void handleMessage(CLIENT* c, Pack* pk)
 	{
+		recvPackCount++;
+		if (timeStamp.getElapsedTimeInSec() >= 1.0)
+		{
+			std::cout << "ç”¨æ—¶" << timeStamp.getElapsedTimeInSec() << " å¥—æ¥å­—(" << c->getSock() << ") æ”¶åˆ°äº†" << recvPackCount << "ä¸ªæ•°æ®åŒ…" << std::endl;
+			timeStamp.update();
+			recvPackCount = 0;
+		}
 		switch (pk->CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
 		{
 			PrivateMessagePack* pack = static_cast<PrivateMessagePack*>(pk);
-			std::cout << "×ª·¢Ë½ĞÅ " << std::endl;
+			std::cout << "è½¬å‘ç§ä¿¡ " << std::endl;
 			std::string sourceName = "user";
 			SOCKET target = 0;
 			auto it = clients.begin();
@@ -271,7 +283,7 @@ public:
 			else
 			{
 				MessagePack pack1;
-				strcpy(pack1.message, "Ë½ĞÅ·¢ËÍÊ§°Ü£¬Ä¿±êÓÃ»§²»´æÔÚ»òÒÑÀëÏß");
+				strcpy(pack1.message, "ç§ä¿¡å‘é€å¤±è´¥ï¼Œç›®æ ‡ç”¨æˆ·ä¸å­˜åœ¨æˆ–å·²ç¦»çº¿");
 				sendMessage(c->getSock(), &pack1);
 			}
 			break;
@@ -279,15 +291,15 @@ public:
 		case CMD_MESSAGE:
 		{
 			MessagePack* pack = static_cast<MessagePack*>(pk);
-			std::cout << "´Ó¿Í»§¶Ë(" << c->getSock() << ")ÊÕµ½µÄÏûÏ¢ :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
-			strcpy(pack->message, "ÏûÏ¢ÒÑ³É¹¦±»·şÎñÆ÷½ÓÊÕ!");
+			std::cout << "ä»å®¢æˆ·ç«¯(" << c->getSock() << ")æ”¶åˆ°çš„æ¶ˆæ¯ :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
+			strcpy(pack->message, "æ¶ˆæ¯å·²æˆåŠŸè¢«æœåŠ¡å™¨æ¥æ”¶!");
 			sendMessage(c->getSock(), pack);
 			break;
 		}
 		case CMD_BROADCAST:
 		{
 			BroadcastPack* pack = static_cast<BroadcastPack*>(pk);
-			std::cout << "¹ã²¥ÏûÏ¢" << std::endl;
+			std::cout << "å¹¿æ’­æ¶ˆæ¯" << std::endl;
 			for (auto c1 : clients)
 			{
 				sendMessage(c1->getSock(), pack);
@@ -313,27 +325,27 @@ public:
 			if (it!=clients.end())
 			{
 
-				std::cout << "ÓÃ»§" << oldName << "(" << c->getSock() << ")¸ÄÃûÎª" << userName << std::endl;
-				userName = "ÒÑ³É¹¦¸ü¸ÄÃû³Æ£¬ÏÖÔÚµÄêÇ³ÆÎª " + userName;
+				std::cout << "ç”¨æˆ·" << oldName << "(" << c->getSock() << ")æ”¹åä¸º" << userName << std::endl;
+				userName = "å·²æˆåŠŸæ›´æ”¹åç§°ï¼Œç°åœ¨çš„æ˜µç§°ä¸º " + userName;
 				MessagePack pack1(userName.c_str());
 				sendMessage(c->getSock(), &pack1);
 			}
 			else
 			{
-				MessagePack pack1("ÖØÃüÃûÊ§°Ü");
+				MessagePack pack1("é‡å‘½åå¤±è´¥");
 				sendMessage(c->getSock(), &pack1);
 			}
 			break;
 		}
 		case CMD_TEST:
 		{
-			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjdµÄ¼òÅ·Íâµ¹½ÇÎÂ¶È¼ÆÎÒ°¢µÄ¾É°®ÎÒID°¾ÍêÎÒ¼¦Ã«ÎÒÍò´ïÃ¯ÎÂ¶È¼Æ°ÂÎÂ¶È¼Æ°¡ ¾Í°ÂµÄÎ¶µÀ¾Í");
+			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjdçš„ç®€æ¬§å¤–å€’è§’æ¸©åº¦è®¡æˆ‘é˜¿çš„æ—§çˆ±æˆ‘IDç†¬å®Œæˆ‘é¸¡æ¯›æˆ‘ä¸‡è¾¾èŒ‚æ¸©åº¦è®¡å¥¥æ¸©åº¦è®¡å•Š å°±å¥¥çš„å‘³é“å°±");
 			//sendMessage(c->getSock(), &pack);
 			break;
 		}
 		default:
 		{
-			std::cout << "ÎŞ·¨½âÎöµÄÏûÏ¢:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
+			std::cout << "æ— æ³•è§£æçš„æ¶ˆæ¯:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
 			break;
 		}
 		}
@@ -341,7 +353,7 @@ public:
 
 private:
 
-	//½ÓÊÕÁ¬½ÓµÄ¿Í»§¶Ë
+	//æ¥æ”¶è¿æ¥çš„å®¢æˆ·ç«¯
 	CLIENT* acceptClient()
 	{
 		SOCKET csock = INVALID_SOCKET;
@@ -356,11 +368,11 @@ private:
 
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "ÎŞĞ§µÄ¿Í»§¶ËÌ×½Ó×Ö" << std::endl;
+			std::cout << "æ— æ•ˆçš„å®¢æˆ·ç«¯å¥—æ¥å­—" << std::endl;
 		}
 		else
 		{
-			std::cout << "ĞÂ¿Í»§¶ËÁ¬½Ó:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
+			std::cout << "æ–°å®¢æˆ·ç«¯è¿æ¥:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 		}
 		std::string username = "user" + std::to_string(csock);
 		CLIENT* c = new CLIENT(csock, csin, csock, username);
@@ -369,7 +381,7 @@ private:
 
 	}
 
-	//½ÓÊÕ²¢´¦ÀíÊı¾İ°ü
+	//æ¥æ”¶å¹¶å¤„ç†æ•°æ®åŒ…
 	int recvPack(CLIENT* c)
 	{
 
@@ -378,7 +390,7 @@ private:
 		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
 		if (len <= 0)
 		{
-			std::cout << "¿Í»§" << c->getUserName() << "(csock=" << csock << ")ÒÑ¶Ï¿ªÁ¬½Ó" << std::endl;
+			std::cout << "å®¢æˆ·" << c->getUserName() << "(csock=" << csock << ")å·²æ–­å¼€è¿æ¥" << std::endl;
 			for (auto it = clients.begin(); it < clients.end(); it++)
 			{
 				if ((*it)->getSock() == c->getSock())
