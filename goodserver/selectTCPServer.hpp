@@ -7,18 +7,16 @@
 #include <algorithm>
 
 #include <string>
-
+#include "../Pack.hpp"
+#include "../CELLTimestamp.hpp"
 #ifdef _WIN32
+	#define FD_SETSIZE	1024
 	#include <WinSock2.h>
 	#include <Windows.h>
-	#include "../Pack.hpp"
-	#include "../CELLTimestamp.hpp"
 #else//Linux
 	#include <unistd.h>
 	#include <arpa/inet.h>
 	#include <string.h>
-	#include "Pack.hpp"	
-	#include "CELLTimestamp.hpp"
 	#define SOCKET int
 	#define INVALID_SOCKET  (SOCKET)(~0)
 	#define SOCKET_ERROR            (-1)
@@ -29,8 +27,8 @@
 
 #define CLIENT_DISCONNECT -1
 
-#define RECV_BUF_SIZE 40960
-#define MSG_BUF_SIZE 409600
+#define RECV_BUF_SIZE 4096
+#define MSG_BUF_SIZE 40960
 
 class CLIENT
 {
@@ -250,13 +248,7 @@ public:
 
 	virtual void handleMessage(CLIENT* c, Pack* pk)
 	{
-		recvPackCount++;
-		if (timeStamp.getElapsedTimeInSec() >= 1.0)
-		{
-			std::cout << "用时" << timeStamp.getElapsedTimeInSec() << " 套接字(" << c->getSock() << ") 收到了" << recvPackCount << "个数据包" << std::endl;
-			timeStamp.update();
-			recvPackCount = 0;
-		}
+
 		switch (pk->CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
@@ -339,6 +331,15 @@ public:
 		}
 		case CMD_TEST:
 		{
+			recvPackCount++;
+			
+			if (timeStamp.getElapsedTimeInSec() >= 1.0)
+			{
+				float speed = recvPackCount * sizeof(TestPack) / 1048576;
+				std::cout << "用时" << timeStamp.getElapsedTimeInSec() << "秒 从" << clients.size() << "个客户端收到了" << recvPackCount << "个数据包，速度" << speed << "MB/s(" << speed*8 << "Mbp/s)" << std::endl;
+				timeStamp.update();
+				recvPackCount = 0;
+			}
 			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
 			//sendMessage(c->getSock(), &pack);
 			break;
@@ -373,11 +374,12 @@ private:
 		else
 		{
 			std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
+			std::string username = "user" + std::to_string(csock);
+			CLIENT* c = new CLIENT(csock, csin, csock, username);
+			clients.push_back(c);
 		}
-		std::string username = "user" + std::to_string(csock);
-		CLIENT* c = new CLIENT(csock, csin, csock, username);
-		clients.push_back(c);
-		return c;
+
+		return nullptr;
 
 	}
 

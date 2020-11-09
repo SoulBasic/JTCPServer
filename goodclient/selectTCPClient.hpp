@@ -2,16 +2,14 @@
 #define _SELECTTCPClient_HPP_
 
 #include <iostream>
-
+#include "../Pack.hpp"
 #ifdef _WIN32
 	#include <WinSock2.h>
 	#include <Windows.h>
-	#include "../Pack.hpp"
 #else//Linux
 	#include <unistd.h>
 	#include <arpa/inet.h>
 	#include <string.h>
-	#include "Pack.hpp"
 	#define SOCKET int
 	#define INVALID_SOCKET  (SOCKET)(~0)
 	#define SOCKET_ERROR            (-1)
@@ -77,10 +75,6 @@ public:
 		{
 			std::cout << "初始化Winsock环境失败" << std::endl;
 		}
-		else
-		{
-			std::cout << "成功初始化Winsock环境！" << std::endl;
-		}
 #endif 
 		if (INVALID_SOCKET != csock)
 		{
@@ -93,10 +87,6 @@ public:
 			std::cout << "初始化客户端失败" << std::endl;
 			return CLIENT_ERROR;
 		}
-		else
-		{
-			std::cout << "客户端初始化成功！" << std::endl;
-		}
 		return CLIENT_SUCCESS;
 	}
 
@@ -104,18 +94,13 @@ public:
 	{
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "套接字未初始化或无效" << std::endl;
-			return CLIENT_ERROR;
+			initSocket();
 		}
 		int res = connect(csock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "无法连接到服务器" << std::endl;
+			std::cout << csock <<"连接服务器失败" << std::endl;
 			return CLIENT_ERROR;
-		}
-		else
-		{
-			std::cout << "成功连接到服务器！" << std::endl;
 		}
 		return CLIENT_SUCCESS;
 	}

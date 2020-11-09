@@ -9,10 +9,10 @@
 #include <bitset>
 
 
-const int clientNum = 1000;
-const int threadNum = 1;
+const int clientNum = 1021;
+const int threadNum = 4;
 bool running = false;
-
+TCPClient* clients[clientNum];
 
 void cmdThread(TCPClient* c)
 {
@@ -79,31 +79,56 @@ void recvThread(TCPClient* c)
 	running = false;
 }
 
-void sendThread(TCPClient* c)
+void sendThread(int id)
 {
+	int c = clientNum / threadNum;
+	int begin = (id - 1)*c;
+	int end = id * c;
+	
+	for (int i = begin; i < end; i++)
+	{
+		if (!running)return;
+		clients[i] = new TCPClient("192.168.199.132",2324);
+	}
+	for (int i = begin; i < end; i++)
+	{
+		clients[i]->connectServer();
+	}
+
+	TestPack pack("123213213");
 	while (running)
 	{
-		TestPack pack("这等级的哇大无多安慰大武当阿达啊我打完的啊哦的旧爱为大我觉得加我激动阿达基调哦对马咯打我一等奖我安慰奖do我案件我一到家");
-		c->sendMessage(&pack);
+		for (int i = begin; i < end; i++)
+		{
+			clients[i]->sendMessage(&pack);
+		}
 	}
+
+
+
+	for (int i = begin; i < end; i++)
+	{
+		clients[i]->terminal();
+		delete clients[i];
+	}
+
 
 }
 
 int main()
 {
-	TCPClient c("192.168.199.132", 2324);
-	c.initSocket();
-	if (CLIENT_ERROR == c.connectServer()) return -1;
-
+	//TCPClient c("192.168.199.132", 2324);
+	//c.initSocket();
+	//if (CLIENT_ERROR == c.connectServer()) return -1;
 	running = true;
-	std::thread tcmd(cmdThread,&c);
-	tcmd.detach();
-	std::thread trecv(recvThread,&c);
-	trecv.detach();
+	//std::thread tcmd(cmdThread,&c);
+	//tcmd.detach();
+	//std::thread trecv(recvThread,&c);
+	//trecv.detach();
 
 	for (int i = 1; i <= threadNum; i++)
 	{
-		std::thread t1(sendThread, &c);
+		std::thread t1(sendThread, i);
 		t1.detach();
 	}
 
