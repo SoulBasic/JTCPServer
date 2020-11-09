@@ -10,7 +10,7 @@
 
 
 const int clientNum = 1000;
-const int threadNum = 0;
+const int threadNum = 4;
 bool running = false;
 
 
@@ -79,6 +79,16 @@ void recvThread(TCPClient* c)
 	running = false;
 }
 
+void sendThread(TCPClient* c)
+{
+	while (running)
+	{
+		TestPack pack("这等级的哇大无多安慰大武当阿达啊我打完的啊哦的旧爱为大我觉得加我激动阿达基调哦对马咯打我一等奖我安慰奖do我案件我一到家");
+		c->sendMessage(&pack);
+		Sleep(5);
+	}
+
+}
 
 int main()
 {
@@ -92,16 +102,18 @@ int main()
 	std::thread trecv(recvThread,&c);
 	trecv.detach();
 
-	/*for (int i = 1; i <= threadNum; i++)
+	for (int i = 1; i <= threadNum; i++)
 	{
-		std::thread t1(sendThread, i);
+		std::thread t1(sendThread, &c);
 		t1.detach();
 	}
-*/
+
 	while (running)
 	{
 		Sleep(500);
 	}
 
 	std::cout << "程序结束" << std::endl;
+	::system("pause");
+	return 0;
 }

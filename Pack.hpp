@@ -8,6 +8,7 @@
 #define CMD_PRIVATEMESSAGE 103
 #define CMD_BROADCAST 104
 #define CMD_NAME 105
+#define CMD_TEST 106
 
 
 class Header
@@ -25,8 +26,6 @@ public:
 	int CMD;
 	Pack() :LENGTH(0), CMD(0) {}
 };
-
-
 
 class LoginPack : public Pack
 {
@@ -48,7 +47,6 @@ public:
 		CMD = CMD_LOGIN;
 	}
 };
-
 
 class MessagePack : public Pack
 {
@@ -82,7 +80,6 @@ public:
 	}
 };
 
-
 class BroadcastPack : public Pack
 {
 public:
@@ -111,6 +108,25 @@ public:
 		CMD = CMD_NAME;
 	}
 };
+
+class TestPack: public Pack
+{
+public:
+	char message[1016];
+	TestPack()
+	{
+		strcpy(message, "\0");
+		LENGTH = sizeof(TestPack);
+		CMD = CMD_TEST;
+	}
+	TestPack(const char* msg)
+	{
+		strcpy(message, msg);
+		LENGTH = sizeof(TestPack);
+		CMD = CMD_TEST;
+	}
+};
+
 
 #endif // !_Pack_HPP_
 

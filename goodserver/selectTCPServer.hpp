@@ -26,19 +26,27 @@
 
 #define CLIENT_DISCONNECT -1
 
+#define RECV_BUF_SIZE 40960
+#define MSG_BUF_SIZE 409600
 
 class CLIENT
 {
 public:
-	CLIENT(SOCKET csock, sockaddr_in csin, int userid, std::string username) :sock(csock), sin(csin), userID(userid), userName(username) {}
+	CLIENT(SOCKET csock, sockaddr_in csin, int userid, std::string username)
+		:sock(csock), sin(csin), lastBufPos(0), userID(userid), userName(username) {}
 	inline SOCKET getSock() { return sock; }
 	inline sockaddr_in getSin() { return sin; }
+	inline char* getmsgBuf() { return msgBuf; }
+	inline int getLastBufPos() { return lastBufPos; }
+	inline void setLastBufPos(int val) { lastBufPos = val; }
 	inline int getUserID() { return userID; }
 	inline std::string getUserName() { return userName; }
 	inline void setUserName(std::string username) { userName = username; }
 private:
 	SOCKET sock;
 	sockaddr_in sin;
+	char msgBuf[MSG_BUF_SIZE] = {};
+	int lastBufPos;
 	int userID;
 	std::string userName;
 };
@@ -52,8 +60,10 @@ private:
 	fd_set fdRead;
 	fd_set fdWrite;
 	fd_set fdExp;
+
+	char recvBuf[RECV_BUF_SIZE] = {};
 public:
-	std::vector<CLIENT> clients;
+	std::vector<CLIENT*> clients;
 	inline SOCKET getSocket() { return ssock; }
 	inline sockaddr_in getSockaddr_in() { return ssin; }
 	TCPServer(const TCPServer& other) = delete;
@@ -64,6 +74,7 @@ public:
 	{
 		ssock = INVALID_SOCKET;
 		ssin = {};
+		
 	}
 
 	~TCPServer()
@@ -153,13 +164,14 @@ public:
 		FD_SET(ssock, &fdWrite);
 		FD_SET(ssock, &fdExp);
 		SOCKET maxSocket = ssock;
-		for (auto& c : clients)
+		for (auto c : clients)
 		{
-			FD_SET(c.getSock(), &fdRead);
-			maxSocket = std::max(maxSocket, c.getSock());
+			FD_SET(c->getSock(), &fdRead);
+			maxSocket = std::max(maxSocket, c->getSock());
 		}
 		timeval t = { 1,0 };
 		int res = select(maxSocket + 1, &fdRead, &fdWrite, &fdExp, &t);
+		//std::cout << "select result = " << res << " num = " << num++ << std::endl;
 		if (res < 0)
 		{
 			std::cout << "select模型未知错误，任务结束" << std::endl;
@@ -168,14 +180,14 @@ public:
 		}
 		if (FD_ISSET(ssock, &fdRead))//新客户加入
 		{
-			clients.push_back(acceptClient());
+			acceptClient();
 			FD_CLR(ssock, &fdRead);
 			return true;
 		}
 		
-		for (auto& i : clients)
+		for (auto i : clients)
 		{	
-			if (FD_ISSET(i.getSock(), &fdRead))
+			if (FD_ISSET(i->getSock(), &fdRead))
 			{
 				recvPack(i);
 			}
@@ -212,15 +224,26 @@ public:
 	{
 		if (INVALID_SOCKET == ssock)return;
 #ifdef _WIN32
+		for (CLIENT* c : clients)
+		{
+			closesocket(c->getSock());
+			delete c;
+		}
 		closesocket(ssock);
 		WSACleanup();
 #else //Linux
+		for (CLIENT* c : clients)
+		{
+			close(c->getSock());
+			delete c;
+		}
 		close(ssock);
 #endif 
 		ssock = INVALID_SOCKET;
+		clients.clear();
 	}
 
-	virtual void handleMessage(CLIENT& c, Pack* pk)
+	virtual void handleMessage(CLIENT* c, Pack* pk)
 	{
 		switch (pk->CMD)
 		{
@@ -233,14 +256,14 @@ public:
 			auto it = clients.begin();
 			for (it; it < clients.end(); it++)
 			{
-				if ((*it).getUserName() == pack->targetName)
+				if ((*it)->getUserName() == pack->targetName)
 				{
-					target = (*it).getSock();
+					target = (*it)->getSock();
 					break;
 				}
 			}
 			
-			strcpy(pack->targetName, c.getUserName().c_str());
+			strcpy(pack->targetName, c->getUserName().c_str());
 			if (it != clients.end())
 			{
 				sendMessage(target,pack);
@@ -249,16 +272,16 @@ public:
 			{
 				MessagePack pack1;
 				strcpy(pack1.message, "私信发送失败，目标用户不存在或已离线");
-				sendMessage(c.getSock(), &pack1);
+				sendMessage(c->getSock(), &pack1);
 			}
 			break;
 		}
 		case CMD_MESSAGE:
 		{
 			MessagePack* pack = static_cast<MessagePack*>(pk);
-			std::cout << "从客户端收到的消息 :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
+			std::cout << "从客户端(" << c->getSock() << ")收到的消息 :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
 			strcpy(pack->message, "消息已成功被服务器接收!");
-			sendMessage(c.getSock(), pack);
+			sendMessage(c->getSock(), pack);
 			break;
 		}
 		case CMD_BROADCAST:
@@ -267,7 +290,7 @@ public:
 			std::cout << "广播消息" << std::endl;
 			for (auto c1 : clients)
 			{
-				sendMessage(c1.getSock(), pack);
+				sendMessage(c1->getSock(), pack);
 			}
 			break;
 		}
@@ -279,34 +302,38 @@ public:
 			auto it = clients.begin();
 			for (it; it < clients.end(); it++)
 			{
-				if (c.getSock() == (*it).getSock())
+				if (c->getSock() == (*it)->getSock())
 				{
-					oldName = (*it).getUserName();
-					(*it).setUserName(pack->name);
+					oldName = (*it)->getUserName();
+					(*it)->setUserName(pack->name);
 					userName = pack->name;
 					break;
 				}
 			}
 			if (it!=clients.end())
 			{
-				MessagePack pack1;
-				std::cout << "用户" << oldName << "(" << c.getSock() << ")改名为" << userName << std::endl;
+
+				std::cout << "用户" << oldName << "(" << c->getSock() << ")改名为" << userName << std::endl;
 				userName = "已成功更改名称，现在的昵称为 " + userName;
-				strcpy(pack1.message, userName.c_str());
-				sendMessage(c.getSock(), &pack1);
+				MessagePack pack1(userName.c_str());
+				sendMessage(c->getSock(), &pack1);
 			}
 			else
 			{
-				MessagePack pack1;
-				userName = "重命名失败";
-				strcpy(pack1.message, userName.c_str());
-				sendMessage(c.getSock(), &pack1);
+				MessagePack pack1("重命名失败");
+				sendMessage(c->getSock(), &pack1);
 			}
+			break;
+		}
+		case CMD_TEST:
+		{
+			TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
+			sendMessage(c->getSock(), &pack);
 			break;
 		}
 		default:
 		{
-			std::cout << "无法解析的消息:CMD=" << pk->CMD << std::endl;
+			std::cout << "无法解析的消息:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
 			break;
 		}
 		}
@@ -315,7 +342,7 @@ public:
 private:
 
 	//接收连接的客户端
-	CLIENT acceptClient()
+	CLIENT* acceptClient()
 	{
 		SOCKET csock = INVALID_SOCKET;
 		sockaddr_in csin = {};
@@ -336,25 +363,27 @@ private:
 			std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 		}
 		std::string username = "user" + std::to_string(csock);
-		CLIENT c(csock, csin, csock, username);
+		CLIENT* c = new CLIENT(csock, csin, csock, username);
+		clients.push_back(c);
 		return c;
 
 	}
 
 	//接收并处理数据包
-	int recvPack(CLIENT& c)
+	int recvPack(CLIENT* c)
 	{
-		char buf[4096] = { '\0' };
-		SOCKET csock = c.getSock();
-		int len = recv(csock, buf, sizeof(Header), NULL);
-		Header* header =(Header*)buf;
+
+		SOCKET csock = c->getSock();
+
+		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
 		if (len <= 0)
 		{
-			std::cout << "客户" << c.getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
+			std::cout << "客户" << c->getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
 			for (auto it = clients.begin(); it < clients.end(); it++)
 			{
-				if ((*it).getSock() == c.getSock())
+				if ((*it)->getSock() == c->getSock())
 				{
+					delete (*it);
 					clients.erase(it);
 					break;
 				}
@@ -362,9 +391,23 @@ private:
 			return CLIENT_DISCONNECT;
 		}
 
-		len = recv(csock, buf + sizeof(Header), header->LENGTH - sizeof(Header), NULL);
-		handleMessage(c, (Pack*)buf);
-
+		memcpy(c->getmsgBuf() + c->getLastBufPos(), recvBuf, len);
+		c->setLastBufPos(c->getLastBufPos() + len);
+		while (c->getLastBufPos() >= sizeof(Header))
+		{
+			Pack* pack = reinterpret_cast<Pack*>(c->getmsgBuf());
+			if (c->getLastBufPos() >= pack->LENGTH)
+			{
+				int nSize = c->getLastBufPos() - pack->LENGTH;
+				handleMessage(c, pack);
+				memcpy(c->getmsgBuf(), c->getmsgBuf() + pack->LENGTH, nSize);
+				c->setLastBufPos(nSize);
+			}
+			else
+			{
+				break;
+			}
+		}
 		return CMD_SUCCESS;
 	}
 };

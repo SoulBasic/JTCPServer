@@ -22,13 +22,17 @@
 
 #define CLIENT_DISCONNECT -1
 
-
+#define RECV_BUF_SIZE 40960
+#define MSG_BUF_SIZE 409600
 
 class TCPClient
 {
 private:
 	SOCKET csock;
 	sockaddr_in ssin;
+	char recvBuf[RECV_BUF_SIZE] = {};
+	char msgBuf[MSG_BUF_SIZE] = {};
+	int lastBufPos = 0;
 public:
 	void setSsin(const char* ip, unsigned short port)
 	{
@@ -206,6 +210,15 @@ public:
 			std::cout << "服务器已将您重命名为:" << pack->name << std::endl;
 			break;
 		}
+		case CMD_TEST:
+		{
+			TestPack* pack = static_cast<TestPack*>(pk);
+			if (pack->LENGTH != 1024)
+			{
+				std::cout << "错误的Test消息:CMD=" << pk->CMD << " length=" << pk->LENGTH << " message = " << pack->message << std::endl;
+			}
+			break;
+		}
 		default:
 		{
 			std::cout << "无法解析的消息:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
@@ -218,9 +231,8 @@ public:
 	//接收并处理数据包
 	int recvPack()
 	{
-		char buf[4096] = { '\0' };
-		int len = recv(csock, buf, sizeof(Header), NULL);
-		Header* header = reinterpret_cast<Header*>(buf);
+		int len = recv(csock, recvBuf, RECV_BUF_SIZE, 0);
+
 		if (len <= 0)
 		{
 			std::cout << "与服务器断开连接" << std::endl;
@@ -228,8 +240,30 @@ public:
 			return CLIENT_DISCONNECT;
 		}
 
+		memcpy(msgBuf + lastBufPos, recvBuf, len);
+		lastBufPos += len;
+		while (lastBufPos >= sizeof(Header))
+		{
+			Pack* pack = reinterpret_cast<Pack*>(msgBuf);
+			if (lastBufPos >= pack->LENGTH)
+			{
+				int nSize = lastBufPos - pack->LENGTH;
+				handleMessage(pack);
+				memcpy(msgBuf, msgBuf + pack->LENGTH, lastBufPos - pack->LENGTH);
+				lastBufPos = nSize;
+			}
+			else
+			{
+				break;
+			}
+		}
+		/*
+		int len = recv(csock, buf, sizeof(Header), NULL);
+		Header* header = reinterpret_cast<Header*>(buf);
+
+
 		len = recv(csock, buf + sizeof(Header), header->LENGTH - sizeof(Header), NULL);
-		handleMessage(reinterpret_cast<Pack*>(buf));
+		handleMessage(reinterpret_cast<Pack*>(buf));*/
 
 		return CLIENT_SUCCESS;
 	}
