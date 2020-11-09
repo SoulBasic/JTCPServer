@@ -5,16 +5,17 @@
 #include <tuple>
 #include <vector>
 #include <algorithm>
-#include "../Pack.hpp"
+
 #include <string>
 #ifdef _WIN32
 	#include <WinSock2.h>
 	#include <Windows.h>
-
+	#include "../Pack.hpp"
 #else//Linux
 	#include <unistd.h>
 	#include <arpa/inet.h>
 	#include <string.h>
+	#include "Pack.hpp"	
 	#define SOCKET int
 	#define INVALID_SOCKET  (SOCKET)(~0)
 	#define SOCKET_ERROR            (-1)
@@ -24,8 +25,6 @@
 #define CMD_SUCCESS 1
 
 #define CLIENT_DISCONNECT -1
-
-
 
 
 class CLIENT
@@ -43,8 +42,6 @@ private:
 	int userID;
 	std::string userName;
 };
-
-
 
 
 class TCPServer
@@ -177,7 +174,7 @@ public:
 		}
 		
 		for (auto& i : clients)
-		{
+		{	
 			if (FD_ISSET(i.getSock(), &fdRead))
 			{
 				recvPack(i);
@@ -188,14 +185,15 @@ public:
 	}
 
 	//给客户端发消息
-	int sendMessage(SOCKET csock, Pack* msg)
+	template<typename PackType>
+	int sendMessage(SOCKET csock, PackType* msg)
 	{
 		if (INVALID_SOCKET == ssock)
 		{
 			std::cout << "服务器套接字未初始化或无效" << std::endl;
 			return CMD_ERROR;
 		}
-		int res = send(csock, (const char*)&msg, sizeof(msg), 0);
+		int res = send(csock, (const char*)msg, sizeof(PackType), 0);
 		if (SOCKET_ERROR == res)
 		{
 			std::cout << "发送数据包失败" << std::endl;
@@ -203,7 +201,8 @@ public:
 		}
 		else
 		{
-			std::cout << "发送数据包to(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
+
+			//std::cout << "发送数据包to(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
 		}
 		return CMD_SUCCESS;
 	}
@@ -221,14 +220,14 @@ public:
 		ssock = INVALID_SOCKET;
 	}
 
-	virtual void handleMessage(CLIENT* c, Pack* pk)
+	virtual void handleMessage(CLIENT& c, Pack* pk)
 	{
 		switch (pk->CMD)
 		{
 		case CMD_PRIVATEMESSAGE:
 		{
-			PrivateMessagePack* pack =  (PrivateMessagePack*)pk;
-			std::cout << "Forward private message " << std::endl;
+			PrivateMessagePack* pack = static_cast<PrivateMessagePack*>(pk);
+			std::cout << "转发私信 " << std::endl;
 			std::string sourceName = "user";
 			SOCKET target = 0;
 			auto it = clients.begin();
@@ -241,26 +240,31 @@ public:
 				}
 			}
 			
-			strcpy(pack->targetName, c->getUserName().c_str());
+			strcpy(pack->targetName, c.getUserName().c_str());
 			if (it != clients.end())
 			{
-				
 				sendMessage(target,pack);
+			}
+			else
+			{
+				MessagePack pack1;
+				strcpy(pack1.message, "私信发送失败，目标用户不存在或已离线");
+				sendMessage(c.getSock(), &pack1);
 			}
 			break;
 		}
 		case CMD_MESSAGE:
 		{
-			MessagePack* pack = (MessagePack*)pk;
-			std::cout << "Message received from client :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
-			strcpy(pack->message, "OK, the server has received your message!");
-			sendMessage(c->getSock(), pack);
+			MessagePack* pack = static_cast<MessagePack*>(pk);
+			std::cout << "从客户端收到的消息 :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
+			strcpy(pack->message, "消息已成功被服务器接收!");
+			sendMessage(c.getSock(), pack);
 			break;
 		}
 		case CMD_BROADCAST:
 		{
-			BroadcastPack* pack = (BroadcastPack*)pk;
-			std::cout << "Broadcast news" << std::endl;
+			BroadcastPack* pack = static_cast<BroadcastPack*>(pk);
+			std::cout << "广播消息" << std::endl;
 			for (auto c1 : clients)
 			{
 				sendMessage(c1.getSock(), pack);
@@ -269,13 +273,13 @@ public:
 		}
 		case CMD_NAME:
 		{
-			NamePack* pack = (NamePack*)pk;
+			NamePack* pack = static_cast<NamePack*>(pk);
 			std::string userName = "";
 			std::string oldName = "";
 			auto it = clients.begin();
 			for (it; it < clients.end(); it++)
 			{
-				if (c->getSock() == (*it).getSock())
+				if (c.getSock() == (*it).getSock())
 				{
 					oldName = (*it).getUserName();
 					(*it).setUserName(pack->name);
@@ -286,29 +290,29 @@ public:
 			if (it!=clients.end())
 			{
 				MessagePack pack1;
-				std::cout << "用户" << oldName << "(" << c->getSock() << ")改名为" << userName << std::endl;
-				userName = "The name has been changed successfully, and the nickname is now " + userName;
+				std::cout << "用户" << oldName << "(" << c.getSock() << ")改名为" << userName << std::endl;
+				userName = "已成功更改名称，现在的昵称为 " + userName;
 				strcpy(pack1.message, userName.c_str());
-				sendMessage(c->getSock(), &pack1);
+				sendMessage(c.getSock(), &pack1);
 			}
 			else
 			{
 				MessagePack pack1;
-				userName = "Failed to rename";
+				userName = "重命名失败";
 				strcpy(pack1.message, userName.c_str());
-				sendMessage(c->getSock(), &pack1);
+				sendMessage(c.getSock(), &pack1);
 			}
 			break;
 		}
 		default:
 		{
-			std::cout << "Unresolved message:CMD=" << pk->CMD << std::endl;
+			std::cout << "无法解析的消息:CMD=" << pk->CMD << std::endl;
 			break;
 		}
 		}
 	}
-private:
 
+private:
 
 	//接收连接的客户端
 	CLIENT acceptClient()
@@ -343,7 +347,7 @@ private:
 		char buf[4096] = { '\0' };
 		SOCKET csock = c.getSock();
 		int len = recv(csock, buf, sizeof(Header), NULL);
-		Header* header = (Header*)buf;
+		Header* header =(Header*)buf;
 		if (len <= 0)
 		{
 			std::cout << "客户" << c.getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
@@ -359,7 +363,7 @@ private:
 		}
 
 		len = recv(csock, buf + sizeof(Header), header->LENGTH - sizeof(Header), NULL);
-		handleMessage(&c,(Pack*)buf);
+		handleMessage(c, (Pack*)buf);
 
 		return CMD_SUCCESS;
 	}

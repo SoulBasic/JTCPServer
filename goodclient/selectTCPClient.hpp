@@ -2,21 +2,25 @@
 #define _SELECTTCPClient_HPP_
 
 #include <iostream>
-#include "../Pack.hpp"
+
 #ifdef _WIN32
-#include <WinSock2.h>
-#include <Windows.h>
+	#include <WinSock2.h>
+	#include <Windows.h>
+	#include "../Pack.hpp"
 #else//Linux
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <string.h>
-#define SOCKET int
-#define INVALID_SOCKET  (SOCKET)(~0)
-#define SOCKET_ERROR            (-1)
+	#include <unistd.h>
+	#include <arpa/inet.h>
+	#include <string.h>
+	#include "Pack.hpp"
+	#define SOCKET int
+	#define INVALID_SOCKET  (SOCKET)(~0)
+	#define SOCKET_ERROR            (-1)
 #endif 
 
 #define CLIENT_ERROR -1
 #define CLIENT_SUCCESS 1
+
+#define CLIENT_DISCONNECT -1
 
 
 
@@ -67,22 +71,27 @@ public:
 		WSADATA data;
 		if (SOCKET_ERROR == WSAStartup(version, &data))
 		{
-			std::cout << "Failed to initialize Winsock environment" << std::endl;
+			std::cout << "初始化Winsock环境失败" << std::endl;
 		}
 		else
 		{
-			std::cout << "Successfully initialized Winsock environment!" << std::endl;
+			std::cout << "成功初始化Winsock环境！" << std::endl;
 		}
 #endif 
+		if (INVALID_SOCKET != csock)
+		{
+			std::cout << "关闭旧连接" << std::endl;
+			terminal();
+		}
 		csock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "Failed to initialize client" << std::endl;
+			std::cout << "初始化客户端失败" << std::endl;
 			return CLIENT_ERROR;
 		}
 		else
 		{
-			std::cout << "Client initialization successful!" << std::endl;
+			std::cout << "客户端初始化成功！" << std::endl;
 		}
 		return CLIENT_SUCCESS;
 	}
@@ -91,18 +100,18 @@ public:
 	{
 		if (INVALID_SOCKET == csock)
 		{
-			std::cout << "Socket is not initialized or invalid" << std::endl;
+			std::cout << "套接字未初始化或无效" << std::endl;
 			return CLIENT_ERROR;
 		}
 		int res = connect(csock, (sockaddr*)&ssin, sizeof(ssin));
 		if (SOCKET_ERROR == res)
 		{
-			std::cout << "Failed to connect to the server" << std::endl;
+			std::cout << "无法连接到服务器" << std::endl;
 			return CLIENT_ERROR;
 		}
 		else
 		{
-			std::cout << "Successfully connected to the server!" << std::endl;
+			std::cout << "成功连接到服务器！" << std::endl;
 		}
 		return CLIENT_SUCCESS;
 	}
@@ -121,50 +130,109 @@ public:
 #endif 
 	}
 
-	template<typename PackType>
-	int sendMessage(PackType& msg)
-	{
-		if (INVALID_SOCKET == csock)
-		{
-			std::cout << "Socket is not initialized or invalid" << std::endl;
-			return CLIENT_ERROR;
-		}
-		int res = send(csock, (const char*)&msg, sizeof(msg), 0);
-		if (SOCKET_ERROR == res)
-		{
-			std::cout << "Sending packet failed" << std::endl;
-			return CLIENT_ERROR;
-		}
-		else
-		{
-			std::cout << "send successed" << std::endl;
-		}
-		return CLIENT_SUCCESS;
-	}
+	inline bool active() { return csock != INVALID_SOCKET; }
 
-
-	template<typename PackType>
-	bool receive(PackType& buf)
+	bool onRun()
 	{
-		auto sz = sizeof(Header);
-		if (sizeof(PackType) == sizeof(Header))
+		if (!active())return false;
+		fd_set fdRead;
+		FD_ZERO(&fdRead);
+		FD_SET(csock, &fdRead);
+		timeval t = { 1,0 };
+		int res = select(csock + 1, &fdRead, NULL, NULL, &t);
+		if (res < 0)
 		{
-			if (recv(csock, (char*)&buf, sizeof(buf), 0) <= 0)
-			{
-				return false;
-			}
+			std::cout << "select模型未知错误，任务结束" << std::endl;
+			terminal();
+			return false;
 		}
-		else
+		if (FD_ISSET(csock, &fdRead))
 		{
-			if (recv(csock, (char*)&buf + sizeof(Header), sizeof(buf) - sizeof(Header), 0) <= 0)
+			FD_CLR(csock, &fdRead);
+			if (CLIENT_DISCONNECT == recvPack())
 			{
 				return false;
 			}
 		}
 		return true;
-		
+	}
+	template<typename PackType>
+	int sendMessage(PackType* msg)
+	{
+		if (INVALID_SOCKET == csock)
+		{
+			std::cout << "服务器套接字未初始化或无效" << std::endl;
+			return CLIENT_ERROR;
+		}
+		int res = send(csock, (char*)msg, sizeof(PackType), 0);
+		if (SOCKET_ERROR == res)
+		{
+			std::cout << "发送数据包失败" << std::endl;
+			return CLIENT_ERROR;
+		}
+		else
+		{
+			//std::cout << "发送成功" << std::endl;
+		}
+		return CLIENT_SUCCESS;
 	}
 
+	virtual void handleMessage(Pack* pk)
+	{
+		switch (pk->CMD)
+		{
+		case CMD_PRIVATEMESSAGE:
+		{
+			PrivateMessagePack* pack = static_cast<PrivateMessagePack*>(pk);
+			std::cout << "收到来自 " << pack->targetName << " 发来的私信：" << pack->message << std::endl;
+			break;
+		}
+		case CMD_MESSAGE:
+		{
+			MessagePack* pack = static_cast<MessagePack*>(pk);
+			std::cout << "收到服务器发来的消息:" << pack->message << std::endl;
+			break;
+		}
+		case CMD_BROADCAST:
+		{
+			BroadcastPack* pack = static_cast<BroadcastPack*>(pk);
+
+			std::cout << "收到广播消息:" << pack->message << std::endl;
+			break;
+		}
+		case CMD_NAME:
+		{
+			NamePack* pack = static_cast<NamePack*>(pk);
+			std::cout << "服务器已将您重命名为:" << pack->name << std::endl;
+			break;
+		}
+		default:
+		{
+			std::cout << "无法解析的消息:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
+			break;
+		}
+		}
+	}
+
+	private:
+	//接收并处理数据包
+	int recvPack()
+	{
+		char buf[4096] = { '\0' };
+		int len = recv(csock, buf, sizeof(Header), NULL);
+		Header* header = reinterpret_cast<Header*>(buf);
+		if (len <= 0)
+		{
+			std::cout << "与服务器断开连接" << std::endl;
+			csock = INVALID_SOCKET;
+			return CLIENT_DISCONNECT;
+		}
+
+		len = recv(csock, buf + sizeof(Header), header->LENGTH - sizeof(Header), NULL);
+		handleMessage(reinterpret_cast<Pack*>(buf));
+
+		return CLIENT_SUCCESS;
+	}
 
 
 };

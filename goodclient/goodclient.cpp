@@ -6,69 +6,102 @@
 #include "selectTCPClient.hpp"
 #include <string>
 #include <atomic>
-using namespace std;
+#include <bitset>
+
 
 const int clientNum = 1000;
-const int threadNum = 1;
+const int threadNum = 0;
 bool running = false;
 
 
-void cmdThread()
+void cmdThread(TCPClient* c)
 {
-	TCPClient c("127.0.0.1", 2324);
-	c.initSocket();
-	c.connectServer();
-	string cmd = "";
-	while (true)
+
+	std::string cmd = "";
+	while (running)
 	{
-		cin >> cmd;
+		std::cin >> cmd;
 		if ("quit" == cmd)
 		{
 			running = false;
 			break;
 		}
-		else if ("send" == cmd)
+		else if (cmd == "cpm")
 		{
-			MessagePack pack;
-			strcpy(pack.message, "hhhha");
-			c.sendMessage(pack);
+			PrivateMessagePack pack;
+			std::cout << "请输入私信目标昵称：";
+			std::cin >> cmd;
+			strcpy(pack.targetName, cmd.c_str());
+			std::cout << "请输入私信内容：";
+			std::cin >> cmd;
+			strcpy(pack.message, cmd.c_str());
+			c->sendMessage(&pack);
 		}
-		else
+		else if (cmd == "bc")
 		{
-			
-			cout << "未定义的命令" << endl;
+			BroadcastPack pack;
+			std::cout << "请输入广播内容：";
+			std::cin >> cmd;
+			strcpy(pack.message, cmd.c_str());
+			c->sendMessage(&pack);
+		}
+		else if (cmd == "name")
+		{
+			NamePack pack;
+			std::cout << "请输入您的昵称 ：";
+			std::cin >> cmd;
+			strcpy(pack.name, cmd.c_str());
+			c->sendMessage(&pack);
+		}
+		else if(cmd == "msg")
+		{
+			std::cout << "请输入消息内容：";
+			std::cin >> cmd;
+			MessagePack pack;
+			strcpy(pack.message, cmd.c_str());
+			c->sendMessage(&pack);
 		}
 		
+		else
+		{
+			std::cout << "未定义的命令" << std::endl;
+		}
+
 	}
 }
 
-void sendThread(int id)
+void recvThread(TCPClient* c)
 {
-	TCPClient c("127.0.0.1", 2324);
-	c.initSocket();
-	c.connectServer();
-	MessagePack pack;
-	strcpy(pack.message, "hhhha");
-	c.sendMessage(pack);
+	while (c->active())
+	{
+		c->onRun();
+	}
+	running = false;
 }
 
 
 int main()
 {
-	thread tcmd(cmdThread);
-	tcmd.detach();
-	
+	TCPClient c("127.0.0.1", 2324);
+	c.initSocket();
+	if (CLIENT_ERROR == c.connectServer()) return -1;
+
 	running = true;
-	for (int i = 1; i <= threadNum; i++)
+	std::thread tcmd(cmdThread,&c);
+	tcmd.detach();
+	std::thread trecv(recvThread,&c);
+	trecv.detach();
+
+	/*for (int i = 1; i <= threadNum; i++)
 	{
-		thread t1(sendThread, i);
+		std::thread t1(sendThread, i);
 		t1.detach();
 	}
-	
+*/
 	while (running)
 	{
 		Sleep(500);
 	}
 
-	cout << "程序结束" << endl;
+	std::cout << "程序结束" << std::endl;
 }
