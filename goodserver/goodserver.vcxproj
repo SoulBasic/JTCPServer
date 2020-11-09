@@ -158,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Pack.hpp" />
+    <ClInclude Include="JLog.hpp" />
     <ClInclude Include="selectTCPServer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
