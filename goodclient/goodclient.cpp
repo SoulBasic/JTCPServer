@@ -9,14 +9,13 @@
 #include <bitset>
 
 
-const int clientNum = 1000;
-const int threadNum = 4;
+const int clientNum = 10000;
+const int threadNum = 15;
 bool running = false;
 TCPClient* clients[clientNum];
 
 void cmdThread(TCPClient* c)
 {
-
 	std::string cmd = "";
 	while (running)
 	{
@@ -102,6 +101,7 @@ void sendThread(int id)
 		{
 			if (INVALID_SOCKET != clients[i]->getCsock())
 			{
+				//clients[i]->onRun();
 				clients[i]->sendMessage(&pack);
 			}
 
@@ -121,10 +121,11 @@ void sendThread(int id)
 
 int main()
 {
-	//TCPClient c("192.168.199.132", 2324);
+	//TCPClient c("127.0.0.1", 2324);
 	//c.initSocket();
 	//if (CLIENT_ERROR == c.connectServer()) return -1;
 	running = true;
+	std::cout << "开始！" << std::endl;
 	//std::thread tcmd(cmdThread,&c);
 	//tcmd.detach();
 	//std::thread trecv(recvThread,&c);

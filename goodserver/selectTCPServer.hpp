@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <tuple>
-#include <vector>
+#include <unordered_map>
 #include <algorithm>
 #include <mutex>
 #include <atomic>
@@ -12,7 +12,7 @@
 #include "../Pack.hpp"
 #include "../CELLTimestamp.hpp"
 #ifdef _WIN32
-	#define FD_SETSIZE	1024
+	#define FD_SETSIZE	512
 	#include <WinSock2.h>
 	#include <Windows.h>
 #else//Linux
@@ -31,7 +31,6 @@
 
 #define RECV_BUF_SIZE 2048
 #define MSG_BUF_SIZE 20480
-#define CELLSERVER_COUNT 4
 
 class CLIENT
 {
@@ -53,22 +52,35 @@ private:
 	int lastBufPos;
 	int userID;
 	std::string userName;
+
 };
+
+class INetEvent
+{
+public:
+	virtual void OnLeave(CLIENT* c) = 0;
+};
+
 
 
 class CellServer
 {
 private:
 	SOCKET ssock;
+	INetEvent* serverEvent;
 	char recvBuf[RECV_BUF_SIZE] = {};
-	std::vector<CLIENT*> clients;
+	std::unordered_map<SOCKET, CLIENT*> clients;
 	std::vector<CLIENT*> clientsBuf;
 	std::mutex mtx;
 	std::thread* mainThread;
+	fd_set fdRead;
+	fd_set fdReadBak;
+	SOCKET maxSocket;
+	std::atomic<bool> fd_read_changed = false;
 public:
 	std::atomic<int> recvPackCount = 0;
 
-	CellServer(SOCKET serverSock):ssock(serverSock)
+	CellServer(SOCKET serverSock, INetEvent* evt) :ssock(serverSock), serverEvent(evt)
 	{
 	}
 	
@@ -89,6 +101,7 @@ public:
 	{
 		std::lock_guard<std::mutex> lg(mtx);
 		clientsBuf.push_back(c);
+
 	}
 
 	//判断服务器是否正常运行中
@@ -103,44 +116,91 @@ public:
 				std::lock_guard<std::mutex> lock(mtx);
 				for (auto c : clientsBuf)
 				{
-					clients.push_back(c);
+					clients.insert(std::make_pair(c->getSock(), c));
 				}
 				clientsBuf.clear();
+				fd_read_changed = true;
 			}
 			if (clients.empty())
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				continue;
 			}
-			fd_set fdRead;
-			fd_set fdWrite;
-			fd_set fdExp;
+
 			FD_ZERO(&fdRead);
-			FD_ZERO(&fdWrite);
-			FD_ZERO(&fdExp);
-			FD_SET(ssock, &fdRead);
-			FD_SET(ssock, &fdWrite);
-			FD_SET(ssock, &fdExp);
-			SOCKET maxSocket = clients[0]->getSock();
-			for (auto c : clients)
+
+			if (fd_read_changed)
 			{
-				FD_SET(c->getSock(), &fdRead);
+				maxSocket = clients.begin()->first;
+				for (auto c : clients)
+				{
+					FD_SET(c.first, &fdRead);
+					maxSocket = std::max(maxSocket, c.first);
+				}
+				memcpy(&fdReadBak,&fdRead, sizeof(fd_set));
+				fd_read_changed = false;
 			}
-			timeval t = { 1,0 };
-			int res = select(maxSocket + 1, &fdRead, &fdWrite, &fdExp, &t);
+			else
+			{
+				memcpy(&fdRead, &fdReadBak, sizeof(fd_set));
+			}
+
+
+			timeval t = { 0,1 };
+			int res = select(maxSocket + 1, &fdRead, nullptr, nullptr, &t);
 			if (res < 0)
 			{
 				std::cout << "select模型未知错误，任务结束" << std::endl;
 				ssock = INVALID_SOCKET;
 				return false;
 			}
-			for (auto i : clients)
+
+#ifdef _WIN32
+			for (int i = 0; i < fdRead.fd_count; i++)
 			{
-				if (FD_ISSET(i->getSock(), &fdRead))
+				auto it = clients.find(fdRead.fd_array[i]);
+				if (it != clients.end())
 				{
-					recvPack(i);
+					if (CLIENT_DISCONNECT == recvPack(it->second))
+					{
+						std::cout << "客户" << it->second->getUserName() << "(csock=" << it->second->getUserName() << ")已断开连接" << std::endl;
+						auto p = it->second;
+						serverEvent->OnLeave(p);
+						std::lock_guard<std::mutex> lg(mtx);
+						clients.erase(it->first);
+						fd_read_changed = true;
+					}
+				}
+				else
+				{
+					std::cout << "奇怪的情况" << std::endl;
+				}
+
+			}
+			
+#else
+
+			for (auto c : clients)
+			{
+				if (FD_ISSET(c.first, &fdRead))
+				{
+					if (CLIENT_DISCONNECT == recvPack(c.second))
+					{
+						std::cout << "客户" << c.second->getUserName() << "(csock=" << c.second->getUserName() << ")已断开连接" << std::endl;
+						auto p = c.second;
+						serverEvent->OnLeave(p);
+						std::lock_guard<std::mutex> lg(mtx);
+						clients.erase(c.first);
+						fd_read_changed = true;
+						break;
+					}
 				}
 			}
+
+#endif // _WIN32
+
+			
+
 
 		}
 		
@@ -149,24 +209,10 @@ public:
 	//接收并处理数据包
 	int recvPack(CLIENT* c)
 	{
-
 		SOCKET csock = c->getSock();
 
 		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
-		if (len <= 0)
-		{
-			std::cout << "客户" << c->getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
-			for (auto it = clients.begin(); it < clients.end(); it++)
-			{
-				if ((*it)->getSock() == c->getSock())
-				{
-					delete (*it);
-					clients.erase(it);
-					break;
-				}
-			}
-			return CLIENT_DISCONNECT;
-		}
+		if (len <= 0)return CLIENT_DISCONNECT;
 
 		memcpy(c->getmsgBuf() + c->getLastBufPos(), recvBuf, len);
 		c->setLastBufPos(c->getLastBufPos() + len);
@@ -222,12 +268,15 @@ public:
 			std::cout << "转发私信 " << std::endl;
 			std::string sourceName = "user";
 			SOCKET target = 0;
+
+
+
 			auto it = clients.begin();
-			for (it; it < clients.end(); it++)
+			for (it; it != clients.end(); it++)
 			{
-				if ((*it)->getUserName() == pack->targetName)
+				if ((*it).second->getUserName() == pack->targetName)
 				{
-					target = (*it)->getSock();
+					target = (*it).first;
 					break;
 				}
 			}
@@ -259,7 +308,7 @@ public:
 			std::cout << "广播消息" << std::endl;
 			for (auto c1 : clients)
 			{
-				sendMessage(c1->getSock(), pack);
+				sendMessage(c1.first, pack);
 			}
 			break;
 		}
@@ -269,12 +318,12 @@ public:
 			std::string userName = "";
 			std::string oldName = "";
 			auto it = clients.begin();
-			for (it; it < clients.end(); it++)
+			for (it; it != clients.end(); it++)
 			{
-				if (c->getSock() == (*it)->getSock())
+				if (c->getSock() == (*it).first)
 				{
-					oldName = (*it)->getUserName();
-					(*it)->setUserName(pack->name);
+					oldName = (*it).second->getUserName();
+					(*it).second->setUserName(pack->name);
 					userName = pack->name;
 					break;
 				}
@@ -297,7 +346,7 @@ public:
 		case CMD_TEST:
 		{
 			recvPackCount++;
-			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
+			//TestPack pack("dwadawd");
 			//sendMessage(c->getSock(), &pack);
 			break;
 		}
@@ -312,7 +361,7 @@ public:
 };
 
 
-class TCPServer
+class TCPServer:public INetEvent
 {
 private:
 	SOCKET ssock = INVALID_SOCKET;
@@ -321,7 +370,8 @@ private:
 	fd_set fdWrite;
 	fd_set fdExp;
 	CELLTimestamp timeStamp;
-	std::vector<CLIENT*> clients;
+	std::mutex mtx_clients;
+	std::unordered_map<SOCKET,CLIENT*> clients;
 	std::vector<CellServer*> cellServers;
 public:
 	inline SOCKET getSocket() { return ssock; }
@@ -369,7 +419,7 @@ public:
 	}
 
 	//绑定并监听端口
-	int bindServer(const char* ip, unsigned short port, int cellServerCount = CELLSERVER_COUNT)
+	int bindServer(const char* ip, unsigned short port, int cellServerCount = 4)
 	{
 		if (INVALID_SOCKET == ssock)
 		{
@@ -416,7 +466,7 @@ public:
 		FD_SET(ssock, &fdRead);
 		FD_SET(ssock, &fdWrite);
 		FD_SET(ssock, &fdExp);
-		timeval t = { 1,0 };
+		timeval t = { 0,100 };
 		int res = select(ssock + 1, &fdRead, &fdWrite, &fdExp, &t);
 		if (res < 0)
 		{
@@ -467,19 +517,19 @@ public:
 		}
 
 #ifdef _WIN32
-		for (CLIENT* c : clients)
+		for (auto c : clients)
 		{
-			closesocket(c->getSock());
-			delete c;
+			closesocket(c.first);
+			delete c.second;
 		}
 
 		closesocket(ssock);
 		WSACleanup();
 #else //Linux
-		for (CLIENT* c : clients)
+		for (auto c : clients)
 		{
-			close(c->getSock());
-			delete c;
+			close(c.first);
+			delete c.second;
 		}
 		close(ssock);
 #endif 
@@ -501,8 +551,14 @@ private:
 				count += s->recvPackCount;
 				s->recvPackCount = 0;
 			}
+			//if (count == 0)return;
 			float speed = static_cast<float>(count * sizeof(TestPack)) / 1048576.0f / t1;
-			std::cout << "用时" << t1 << "秒 从" << clients.size() << "个客户端收到了" << count << "个数据包，速度" << speed << "MB/s(" << speed * 8 << "Mbp/s)" << std::endl;
+			std::cout << "" << t1 << " " << clients.size() << "个客户端收到了" << count << "个包，速度" << speed << "MB/s" << std::endl;
+			for (auto cs : cellServers)
+			{
+				std::cout << cs->getClientCount() << " ";
+			}
+			std::cout << "\n";
 			timeStamp.update();
 		}
 	}
@@ -525,7 +581,7 @@ private:
 		}
 		else
 		{
-			std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
+			//std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 			std::string username = "user" + std::to_string(csock);
 			addClientToCellServer(new CLIENT(csock, csin, csock, username));			
 		}
@@ -536,7 +592,6 @@ private:
 
 	void addClientToCellServer(CLIENT* c)
 	{
-		clients.push_back(c);
 		auto ms = cellServers[0];
 		for (auto s : cellServers)
 		{
@@ -546,17 +601,32 @@ private:
 			}
 		}
 		ms->addClientToBuf(c);
+		std::lock_guard<std::mutex> lg(mtx_clients);
+		clients.insert(std::make_pair(c->getSock(), c));
 	}
 
-	void startCellServers(int cellServerCount = CELLSERVER_COUNT)
+	void startCellServers(int cellServerCount)
 	{
-		for (int i = 0; i < CELLSERVER_COUNT; i++)
+		for (int i = 0; i < cellServerCount; i++)
 		{
-			CellServer* s = new CellServer(ssock);
+			CellServer* s = new CellServer(ssock,this);
 			s->start();
 			cellServers.push_back(s);
 		}
 	}
+
+	virtual void OnLeave(CLIENT* c)
+	{
+		std::lock_guard<std::mutex> lg(mtx_clients);
+		auto it = clients.find(c->getSock());
+		if (it != clients.end())
+		{
+			auto p = (*it).second;
+			clients.erase(it);
+			delete (p);
+		}
+	}
+
 };
 
 

@@ -131,7 +131,7 @@ public:
 		fd_set fdRead;
 		FD_ZERO(&fdRead);
 		FD_SET(csock, &fdRead);
-		timeval t = { 1,0 };
+		timeval t = { 0,0 };
 		int res = select(csock + 1, &fdRead, NULL, NULL, &t);
 		if (res < 0)
 		{
@@ -202,7 +202,7 @@ public:
 		case CMD_TEST:
 		{
 			TestPack* pack = static_cast<TestPack*>(pk);
-			if (pack->LENGTH != 1024)
+			if (pack->LENGTH != sizeof(TestPack))
 			{
 				std::cout << "错误的Test消息:CMD=" << pk->CMD << " length=" << pk->LENGTH << " message = " << pack->message << std::endl;
 			}
