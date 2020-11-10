@@ -32,6 +32,8 @@ private:
 	char msgBuf[MSG_BUF_SIZE] = {};
 	int lastBufPos = 0;
 public:
+
+	inline SOCKET getCsock() { return csock; }
 	void setSsin(const char* ip, unsigned short port)
 	{
 		ssin = {};
@@ -100,6 +102,8 @@ public:
 		if (SOCKET_ERROR == res)
 		{
 			std::cout << csock <<"连接服务器失败" << std::endl;
+			csock = INVALID_SOCKET;
+
 			return CLIENT_ERROR;
 		}
 		return CLIENT_SUCCESS;

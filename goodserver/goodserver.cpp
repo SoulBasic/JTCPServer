@@ -9,7 +9,6 @@ int main()
 	server.initSocket();
 	server.bindServer("127.0.0.1", 2324);
 
-
 	while (server.active())
 	{
 		server.OnRun();

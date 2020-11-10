@@ -9,7 +9,7 @@
 #include <bitset>
 
 
-const int clientNum = 1021;
+const int clientNum = 1000;
 const int threadNum = 4;
 bool running = false;
 TCPClient* clients[clientNum];
@@ -88,7 +88,7 @@ void sendThread(int id)
 	for (int i = begin; i < end; i++)
 	{
 		if (!running)return;
-		clients[i] = new TCPClient("192.168.199.132",2324);
+		clients[i] = new TCPClient("127.0.0.1",2324);
 	}
 	for (int i = begin; i < end; i++)
 	{
@@ -100,7 +100,11 @@ void sendThread(int id)
 	{
 		for (int i = begin; i < end; i++)
 		{
-			clients[i]->sendMessage(&pack);
+			if (INVALID_SOCKET != clients[i]->getCsock())
+			{
+				clients[i]->sendMessage(&pack);
+			}
+
 		}
 	}
 

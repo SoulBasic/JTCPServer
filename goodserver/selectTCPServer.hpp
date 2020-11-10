@@ -5,6 +5,8 @@
 #include <tuple>
 #include <vector>
 #include <algorithm>
+#include <mutex>
+#include <atomic>
 
 #include <string>
 #include "../Pack.hpp"
@@ -27,8 +29,9 @@
 
 #define CLIENT_DISCONNECT -1
 
-#define RECV_BUF_SIZE 4096
-#define MSG_BUF_SIZE 40960
+#define RECV_BUF_SIZE 2048
+#define MSG_BUF_SIZE 20480
+#define CELLSERVER_COUNT 4
 
 class CLIENT
 {
@@ -53,150 +56,136 @@ private:
 };
 
 
-class TCPServer
+class CellServer
 {
 private:
 	SOCKET ssock;
-	sockaddr_in ssin;
-	fd_set fdRead;
-	fd_set fdWrite;
-	fd_set fdExp;
 	char recvBuf[RECV_BUF_SIZE] = {};
-	CELLTimestamp timeStamp;
-	int recvPackCount;
-public:
 	std::vector<CLIENT*> clients;
-	inline SOCKET getSocket() { return ssock; }
-	inline sockaddr_in getSockaddr_in() { return ssin; }
-	TCPServer(const TCPServer& other) = delete;
-	const TCPServer& operator=(const TCPServer& other) = delete;
+	std::vector<CLIENT*> clientsBuf;
+	std::mutex mtx;
+	std::thread* mainThread;
 public:
-	//初始化win环境
-	explicit inline TCPServer()
+	std::atomic<int> recvPackCount = 0;
+
+	CellServer(SOCKET serverSock):ssock(serverSock)
 	{
-		ssock = INVALID_SOCKET;
-		ssin = {};
-		recvPackCount = 0;
-		
+	}
+	
+	~CellServer()
+	{
+		delete mainThread;
 	}
 
-	~TCPServer()
+	void start()
 	{
-		terminal();
+		mainThread = new std::thread(std::mem_fun(&CellServer::OnRun), this);
+		mainThread->detach();
+	}
+
+	inline size_t getClientCount() { return clients.size() + clientsBuf.size(); }
+
+	void addClientToBuf(CLIENT* c)
+	{
+		std::lock_guard<std::mutex> lg(mtx);
+		clientsBuf.push_back(c);
 	}
 
 	//判断服务器是否正常运行中
 	inline bool active() { return ssock != INVALID_SOCKET; }
 
-	//初始化socket
-	int initSocket()
-	{
-#ifdef _WIN32
-		WORD version = MAKEWORD(2, 2);
-		WSADATA data;
-		if (SOCKET_ERROR == WSAStartup(version, &data))
-		{
-			std::cout << "初始化Winsock环境失败" << std::endl;
-		}
-		else
-		{
-			std::cout << "已成功初始化Winsock环境!" << std::endl;
-		}
-#endif 
-		ssock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (INVALID_SOCKET == ssock)
-		{
-			std::cout << "初始化服务器失败" << std::endl;
-			return CMD_ERROR;
-		}
-		else
-		{
-			std::cout << "服务器初始化成功!" << std::endl;
-		}
-		return CMD_SUCCESS;
-	}
-
-	//绑定并监听端口
-	int bindServer(const char* ip, unsigned short port)
-	{
-		if (INVALID_SOCKET == ssock)
-		{
-			std::cout << "套接字未初始化或无效" << std::endl;
-			return CMD_ERROR;
-		}
-		ssin.sin_family = AF_INET;
-		ssin.sin_port = htons(port);
-#ifdef _WIN32
-		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
-#else
-		ssin.sin_addr.s_addr = inet_addr(ip);
-#endif 
-		int res = bind(ssock, (sockaddr*)&ssin, sizeof(ssin));
-		if (SOCKET_ERROR == res)
-		{
-			std::cout << "绑定端口失败" << std::endl;
-			return CMD_ERROR;
-		}
-		else
-		{
-			std::cout << "端口绑定成功!" << std::endl;
-		}
-
-		if (SOCKET_ERROR == listen(ssock, 5))
-		{
-			std::cout << "侦听端口失败" << std::endl;
-			return -1;
-		}
-		else
-		{
-			std::cout << "侦听端口成功!" << std::endl;
-		}
-
-		return CMD_SUCCESS;
-	}
-
-
 	bool OnRun()
 	{
-		if (!active())return false;
+		while (active())
+		{
+			if (clientsBuf.size() > 0)
+			{
+				std::lock_guard<std::mutex> lock(mtx);
+				for (auto c : clientsBuf)
+				{
+					clients.push_back(c);
+				}
+				clientsBuf.clear();
+			}
+			if (clients.empty())
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				continue;
+			}
+			fd_set fdRead;
+			fd_set fdWrite;
+			fd_set fdExp;
+			FD_ZERO(&fdRead);
+			FD_ZERO(&fdWrite);
+			FD_ZERO(&fdExp);
+			FD_SET(ssock, &fdRead);
+			FD_SET(ssock, &fdWrite);
+			FD_SET(ssock, &fdExp);
+			SOCKET maxSocket = clients[0]->getSock();
+			for (auto c : clients)
+			{
+				FD_SET(c->getSock(), &fdRead);
+			}
+			timeval t = { 1,0 };
+			int res = select(maxSocket + 1, &fdRead, &fdWrite, &fdExp, &t);
+			if (res < 0)
+			{
+				std::cout << "select模型未知错误，任务结束" << std::endl;
+				ssock = INVALID_SOCKET;
+				return false;
+			}
+			for (auto i : clients)
+			{
+				if (FD_ISSET(i->getSock(), &fdRead))
+				{
+					recvPack(i);
+				}
+			}
 
-		FD_ZERO(&fdRead);
-		FD_ZERO(&fdWrite);
-		FD_ZERO(&fdExp);
-		FD_SET(ssock, &fdRead);
-		FD_SET(ssock, &fdWrite);
-		FD_SET(ssock, &fdExp);
-		SOCKET maxSocket = ssock;
-		for (auto c : clients)
-		{
-			FD_SET(c->getSock(), &fdRead);
-			maxSocket = std::max(maxSocket, c->getSock());
-		}
-		timeval t = { 1,0 };
-		int res = select(maxSocket + 1, &fdRead, &fdWrite, &fdExp, &t);
-		//std::cout << "select result = " << res << " num = " << num++ << std::endl;
-		if (res < 0)
-		{
-			std::cout << "select模型未知错误，任务结束" << std::endl;
-			terminal();
-			return false;
-		}
-		if (FD_ISSET(ssock, &fdRead))//新客户加入
-		{
-			acceptClient();
-			FD_CLR(ssock, &fdRead);
-			return true;
 		}
 		
-		for (auto i : clients)
-		{	
-			if (FD_ISSET(i->getSock(), &fdRead))
+	}
+
+	//接收并处理数据包
+	int recvPack(CLIENT* c)
+	{
+
+		SOCKET csock = c->getSock();
+
+		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
+		if (len <= 0)
+		{
+			std::cout << "客户" << c->getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
+			for (auto it = clients.begin(); it < clients.end(); it++)
 			{
-				recvPack(i);
+				if ((*it)->getSock() == c->getSock())
+				{
+					delete (*it);
+					clients.erase(it);
+					break;
+				}
 			}
-			
+			return CLIENT_DISCONNECT;
 		}
-		return true;
+
+		memcpy(c->getmsgBuf() + c->getLastBufPos(), recvBuf, len);
+		c->setLastBufPos(c->getLastBufPos() + len);
+		while (c->getLastBufPos() >= sizeof(Header))
+		{
+			Pack* pack = reinterpret_cast<Pack*>(c->getmsgBuf());
+			if (c->getLastBufPos() >= pack->LENGTH)
+			{
+				int nSize = c->getLastBufPos() - pack->LENGTH;
+				handleMessage(c, pack);
+				memcpy(c->getmsgBuf(), c->getmsgBuf() + pack->LENGTH, nSize);
+				c->setLastBufPos(nSize);
+			}
+			else
+			{
+				break;
+			}
+		}
+		return CMD_SUCCESS;
 	}
 
 	//给客户端发消息
@@ -222,30 +211,6 @@ public:
 		return CMD_SUCCESS;
 	}
 
-	//关闭socket
-	void terminal()
-	{
-		if (INVALID_SOCKET == ssock)return;
-#ifdef _WIN32
-		for (CLIENT* c : clients)
-		{
-			closesocket(c->getSock());
-			delete c;
-		}
-		closesocket(ssock);
-		WSACleanup();
-#else //Linux
-		for (CLIENT* c : clients)
-		{
-			close(c->getSock());
-			delete c;
-		}
-		close(ssock);
-#endif 
-		ssock = INVALID_SOCKET;
-		clients.clear();
-	}
-
 	virtual void handleMessage(CLIENT* c, Pack* pk)
 	{
 
@@ -266,11 +231,11 @@ public:
 					break;
 				}
 			}
-			
+
 			strcpy(pack->targetName, c->getUserName().c_str());
 			if (it != clients.end())
 			{
-				sendMessage(target,pack);
+				sendMessage(target, pack);
 			}
 			else
 			{
@@ -314,7 +279,7 @@ public:
 					break;
 				}
 			}
-			if (it!=clients.end())
+			if (it != clients.end())
 			{
 
 				std::cout << "用户" << oldName << "(" << c->getSock() << ")改名为" << userName << std::endl;
@@ -332,14 +297,6 @@ public:
 		case CMD_TEST:
 		{
 			recvPackCount++;
-			
-			if (timeStamp.getElapsedTimeInSec() >= 1.0)
-			{
-				float speed = recvPackCount * sizeof(TestPack) / 1048576;
-				std::cout << "用时" << timeStamp.getElapsedTimeInSec() << "秒 从" << clients.size() << "个客户端收到了" << recvPackCount << "个数据包，速度" << speed << "MB/s(" << speed*8 << "Mbp/s)" << std::endl;
-				timeStamp.update();
-				recvPackCount = 0;
-			}
 			//TestPack pack("djawodawdadjaiwodjoiawdjawjdawodijawidawjd的简欧外倒角温度计我阿的旧爱我ID熬完我鸡毛我万达茂温度计奥温度计啊 就奥的味道就");
 			//sendMessage(c->getSock(), &pack);
 			break;
@@ -352,8 +309,203 @@ public:
 		}
 	}
 
-private:
+};
 
+
+class TCPServer
+{
+private:
+	SOCKET ssock = INVALID_SOCKET;
+	sockaddr_in ssin = {};
+	fd_set fdRead;
+	fd_set fdWrite;
+	fd_set fdExp;
+	CELLTimestamp timeStamp;
+	std::vector<CLIENT*> clients;
+	std::vector<CellServer*> cellServers;
+public:
+	inline SOCKET getSocket() { return ssock; }
+	inline sockaddr_in getSockaddr_in() { return ssin; }
+	TCPServer(const TCPServer& other) = delete;
+	const TCPServer& operator=(const TCPServer& other) = delete;
+public:
+	//初始化win环境
+	explicit inline TCPServer(){}
+
+	~TCPServer()
+	{
+		terminal();
+	}
+
+	//判断服务器是否正常运行中
+	inline bool active() { return ssock != INVALID_SOCKET; }
+
+	//初始化socket
+	int initSocket()
+	{
+#ifdef _WIN32
+		WORD version = MAKEWORD(2, 2);
+		WSADATA data;
+		if (SOCKET_ERROR == WSAStartup(version, &data))
+		{
+			std::cout << "初始化Winsock环境失败" << std::endl;
+		}
+		else
+		{
+			std::cout << "已成功初始化Winsock环境!" << std::endl;
+		}
+#endif 
+		ssock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (INVALID_SOCKET == ssock)
+		{
+			std::cout << "初始化服务器失败" << std::endl;
+			return CMD_ERROR;
+		}
+		else
+		{
+			std::cout << "服务器初始化成功!" << std::endl;
+		}
+		return CMD_SUCCESS;
+	}
+
+	//绑定并监听端口
+	int bindServer(const char* ip, unsigned short port, int cellServerCount = CELLSERVER_COUNT)
+	{
+		if (INVALID_SOCKET == ssock)
+		{
+			initSocket();
+		}
+		ssin.sin_family = AF_INET;
+		ssin.sin_port = htons(port);
+#ifdef _WIN32
+		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
+#else
+		ssin.sin_addr.s_addr = inet_addr(ip);
+#endif 
+		int res = bind(ssock, (sockaddr*)&ssin, sizeof(ssin));
+		if (SOCKET_ERROR == res)
+		{
+			std::cout << "绑定端口失败" << std::endl;
+			return CMD_ERROR;
+		}
+		else
+		{
+			std::cout << "端口绑定成功!" << std::endl;
+		}
+
+		if (SOCKET_ERROR == listen(ssock, 5))
+		{
+			std::cout << "侦听端口失败" << std::endl;
+			return -1;
+		}
+		else
+		{
+			std::cout << "侦听端口成功!" << std::endl;
+		}
+		startCellServers(cellServerCount);
+		return CMD_SUCCESS;
+	}
+
+	bool OnRun()
+	{
+		timeToMsg();
+		if (!active())return false;
+		FD_ZERO(&fdRead);
+		FD_ZERO(&fdWrite);
+		FD_ZERO(&fdExp);
+		FD_SET(ssock, &fdRead);
+		FD_SET(ssock, &fdWrite);
+		FD_SET(ssock, &fdExp);
+		timeval t = { 1,0 };
+		int res = select(ssock + 1, &fdRead, &fdWrite, &fdExp, &t);
+		if (res < 0)
+		{
+			std::cout << "select模型未知错误，任务结束" << std::endl;
+			terminal();
+			return false;
+		}
+
+		if (FD_ISSET(ssock, &fdRead))//新客户加入
+		{
+			acceptClient();
+			FD_CLR(ssock, &fdRead);
+		}
+
+		return true;
+	}
+
+	//给客户端发消息
+	template<typename PackType>
+	int sendMessage(SOCKET csock, PackType* msg)
+	{
+		if (INVALID_SOCKET == ssock)
+		{
+			std::cout << "服务器套接字未初始化或无效" << std::endl;
+			return CMD_ERROR;
+		}
+		int res = send(csock, (const char*)msg, sizeof(PackType), 0);
+		if (SOCKET_ERROR == res)
+		{
+			std::cout << "发送数据包失败" << std::endl;
+			return CMD_ERROR;
+		}
+		else
+		{
+
+			//std::cout << "发送数据包to(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
+		}
+		return CMD_SUCCESS;
+	}
+
+	//关闭socket
+	void terminal()
+	{
+		if (INVALID_SOCKET == ssock)return;
+		for (auto s : cellServers)
+		{
+			delete s;
+		}
+
+#ifdef _WIN32
+		for (CLIENT* c : clients)
+		{
+			closesocket(c->getSock());
+			delete c;
+		}
+
+		closesocket(ssock);
+		WSACleanup();
+#else //Linux
+		for (CLIENT* c : clients)
+		{
+			close(c->getSock());
+			delete c;
+		}
+		close(ssock);
+#endif 
+		ssock = INVALID_SOCKET;
+		clients.clear();
+	}
+
+
+
+private:
+	void timeToMsg()
+	{
+		auto t1 = timeStamp.getElapsedTimeInSec();
+		if (t1 >= 1.0)
+		{
+			int count = 0;
+			for (auto s : cellServers)
+			{
+				count += s->recvPackCount;
+				s->recvPackCount = 0;
+			}
+			float speed = static_cast<float>(count * sizeof(TestPack)) / 1048576.0f / t1;
+			std::cout << "用时" << t1 << "秒 从" << clients.size() << "个客户端收到了" << count << "个数据包，速度" << speed << "MB/s(" << speed * 8 << "Mbp/s)" << std::endl;
+			timeStamp.update();
+		}
+	}
 	//接收连接的客户端
 	CLIENT* acceptClient()
 	{
@@ -375,54 +527,35 @@ private:
 		{
 			std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 			std::string username = "user" + std::to_string(csock);
-			CLIENT* c = new CLIENT(csock, csin, csock, username);
-			clients.push_back(c);
+			addClientToCellServer(new CLIENT(csock, csin, csock, username));			
 		}
 
 		return nullptr;
 
 	}
 
-	//接收并处理数据包
-	int recvPack(CLIENT* c)
+	void addClientToCellServer(CLIENT* c)
 	{
-
-		SOCKET csock = c->getSock();
-
-		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
-		if (len <= 0)
+		clients.push_back(c);
+		auto ms = cellServers[0];
+		for (auto s : cellServers)
 		{
-			std::cout << "客户" << c->getUserName() << "(csock=" << csock << ")已断开连接" << std::endl;
-			for (auto it = clients.begin(); it < clients.end(); it++)
+			if (s->getClientCount() < ms->getClientCount())
 			{
-				if ((*it)->getSock() == c->getSock())
-				{
-					delete (*it);
-					clients.erase(it);
-					break;
-				}
-			}
-			return CLIENT_DISCONNECT;
-		}
-
-		memcpy(c->getmsgBuf() + c->getLastBufPos(), recvBuf, len);
-		c->setLastBufPos(c->getLastBufPos() + len);
-		while (c->getLastBufPos() >= sizeof(Header))
-		{
-			Pack* pack = reinterpret_cast<Pack*>(c->getmsgBuf());
-			if (c->getLastBufPos() >= pack->LENGTH)
-			{
-				int nSize = c->getLastBufPos() - pack->LENGTH;
-				handleMessage(c, pack);
-				memcpy(c->getmsgBuf(), c->getmsgBuf() + pack->LENGTH, nSize);
-				c->setLastBufPos(nSize);
-			}
-			else
-			{
-				break;
+				ms = s;
 			}
 		}
-		return CMD_SUCCESS;
+		ms->addClientToBuf(c);
+	}
+
+	void startCellServers(int cellServerCount = CELLSERVER_COUNT)
+	{
+		for (int i = 0; i < CELLSERVER_COUNT; i++)
+		{
+			CellServer* s = new CellServer(ssock);
+			s->start();
+			cellServers.push_back(s);
+		}
 	}
 };
 
