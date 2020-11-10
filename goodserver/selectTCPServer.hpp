@@ -5,8 +5,10 @@
 #include <tuple>
 #include <unordered_map>
 #include <algorithm>
+#include <vector>
 #include <mutex>
 #include <atomic>
+#include <thread>
 
 #include <string>
 #include "../Pack.hpp"
@@ -72,13 +74,13 @@ private:
 	std::unordered_map<SOCKET, CLIENT*> clients;
 	std::vector<CLIENT*> clientsBuf;
 	std::mutex mtx;
-	std::thread* mainThread;
+	std::thread* mainThread = nullptr;
 	fd_set fdRead;
 	fd_set fdReadBak;
 	SOCKET maxSocket;
-	std::atomic<bool> fd_read_changed = false;
+	std::atomic<bool> fd_read_changed;
 public:
-	std::atomic<int> recvPackCount = 0;
+	std::atomic<int> recvPackCount;
 
 	CellServer(SOCKET serverSock, INetEvent* evt) :ssock(serverSock), serverEvent(evt)
 	{
