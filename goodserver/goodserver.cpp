@@ -7,7 +7,7 @@ int main()
 {
 	TCPServer server;
 	server.initSocket();
-	server.bindServer("127.0.0.1", 2324, 10);
+	server.bindServer("10.4.246.94", 2324, 10);
 
 	while (server.active())
 	{

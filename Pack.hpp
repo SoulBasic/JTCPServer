@@ -112,7 +112,7 @@ public:
 class TestPack: public Pack
 {
 public:
-	char message[120];
+	char message[504];
 	TestPack()
 	{
 		strcpy(message, "\0");

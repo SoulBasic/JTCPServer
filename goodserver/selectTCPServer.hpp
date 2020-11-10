@@ -29,7 +29,7 @@
 
 #define CLIENT_DISCONNECT -1
 
-#define RECV_BUF_SIZE 2048
+#define RECV_BUF_SIZE 4096
 #define MSG_BUF_SIZE 20480
 
 class CLIENT

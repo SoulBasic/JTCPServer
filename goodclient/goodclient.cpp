@@ -9,8 +9,8 @@
 #include <bitset>
 
 
-const int clientNum = 10000;
-const int threadNum = 15;
+const int clientNum = 4;
+const int threadNum = 2;
 bool running = false;
 TCPClient* clients[clientNum];
 
@@ -87,7 +87,7 @@ void sendThread(int id)
 	for (int i = begin; i < end; i++)
 	{
 		if (!running)return;
-		clients[i] = new TCPClient("127.0.0.1",2324);
+		clients[i] = new TCPClient("10.4.246.94",2324);
 	}
 	for (int i = begin; i < end; i++)
 	{
