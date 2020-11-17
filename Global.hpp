@@ -11,8 +11,11 @@
 #include <atomic>
 #include <thread>
 #include <string>
+#include <memory>
+
 #include "Pack.hpp"
 #include "CELLTimestamp.hpp"
+
 #ifdef _WIN32
 #define FD_SETSIZE	512
 #include <WinSock2.h>

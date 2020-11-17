@@ -9,7 +9,7 @@
 class TCPServer : public INetEvent
 {
 private:
-	std::unordered_map<SOCKET, CLIENT*> clients;
+	std::unordered_map<SOCKET, std::shared_ptr<CLIENT>> clients;
 	std::vector<CellServer*> cellServers;
 	sockaddr_in ssin = {};
 	fd_set fdRead;
@@ -140,20 +140,11 @@ public:
 		}
 
 #ifdef _WIN32
-		for (auto c : clients)
-		{
-			closesocket(c.first);
-			delete c.second;
-		}
+		
 
 		closesocket(ssock);
 		WSACleanup();
 #else //Linux
-		for (auto c : clients)
-		{
-			close(c.first);
-			delete c.second;
-		}
 		close(ssock);
 #endif 
 		ssock = INVALID_SOCKET;
@@ -174,7 +165,7 @@ private:
 				count += s->recvPackCount;
 				s->recvPackCount = 0;
 			}
-			//if (count == 0)return;
+			if (count == 0)return;
 			float speed = static_cast<float>(count * sizeof(TestPack)) / 1048576.0f / t1;
 			std::cout << "" << t1 << " " << clients.size() << "个客户端收到了" << count << "个包，速度" << speed << "MB/s" << std::endl;
 			for (auto cs : cellServers)
@@ -207,14 +198,15 @@ private:
 		{
 			//std::cout << "新客户端连接:" << csock << " IP:" << inet_ntoa(csin.sin_addr) << std::endl;
 			std::string username = "user" + std::to_string(csock);
-			addClientToCellServer(new CLIENT(csock, csin, csock, username));
+			std::shared_ptr<CLIENT> c(new CLIENT(csock, csin, csock, username));
+			addClientToCellServer(c);
 		}
 
 		return nullptr;
 
 	}
 
-	void addClientToCellServer(CLIENT* c)
+	void addClientToCellServer(std::shared_ptr<CLIENT> c)
 	{
 		auto ms = cellServers[0];
 		for (auto s : cellServers)
@@ -239,15 +231,13 @@ private:
 		}
 	}
 
-	virtual void OnLeave(CLIENT* c)
+	virtual void OnLeave(std::shared_ptr<CLIENT> c)
 	{
 		std::lock_guard<std::mutex> lg(mtx_clients);
 		auto it = clients.find(c->getSock());
 		if (it != clients.end())
 		{
-			auto p = (*it).second;
 			clients.erase(it);
-			delete (p);
 		}
 	}
 

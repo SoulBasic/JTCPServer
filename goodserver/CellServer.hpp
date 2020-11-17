@@ -12,8 +12,8 @@ private:
 	char recvBuf[RECV_BUF_SIZE] = {};
 	char sendBuf[SEND_BUF_SIZE] = {};
 	int lastSendPos;
-	std::unordered_map<SOCKET, CLIENT*> clients;
-	std::vector<CLIENT*> clientsBuf;
+	std::unordered_map<SOCKET, std::shared_ptr<CLIENT>> clients;
+	std::vector<std::shared_ptr<CLIENT>> clientsBuf;
 	std::mutex mtx;
 	std::thread* mainThread = nullptr;
 	fd_set fdRead;
@@ -40,7 +40,7 @@ public:
 
 	inline size_t getClientCount() { return clients.size() + clientsBuf.size(); }
 
-	void addClientToBuf(CLIENT* c)
+	void addClientToBuf(std::shared_ptr<CLIENT> c)
 	{
 		std::lock_guard<std::mutex> lg(mtx);
 		clientsBuf.push_back(c);
@@ -166,7 +166,7 @@ public:
 	}
 
 	//接收并处理数据包
-	int recvPack(CLIENT* c)
+	int recvPack(std::shared_ptr<CLIENT> c)
 	{
 		SOCKET csock = c->getSock();
 		int len = recv(csock, recvBuf, RECV_BUF_SIZE, NULL);
@@ -237,7 +237,7 @@ public:
 		return res;
 	}
 
-	virtual void handleMessage(CLIENT* c, Pack* pk)
+	virtual void handleMessage(std::shared_ptr<CLIENT> c, Pack* pk)
 	{
 		switch (pk->CMD)
 		{

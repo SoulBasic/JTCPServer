@@ -6,6 +6,6 @@
 class INetEvent 
 {
 public:
-	virtual void OnLeave(CLIENT* c) = 0;
+	virtual void OnLeave(std::shared_ptr<CLIENT> c) = 0;
 };
 #endif
