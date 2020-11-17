@@ -60,6 +60,7 @@ public:
 		{
 			std::cout << "服务器初始化成功!" << std::endl;
 		}
+
 		return CMD_SUCCESS;
 	}
 
@@ -236,6 +237,7 @@ private:
 		auto it = clients.find(c->getSock());
 		if (it != clients.end())
 		{
+			c->setAlive(false);
 			clients.erase(it);
 		}
 	}

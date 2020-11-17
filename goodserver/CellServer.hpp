@@ -53,14 +53,20 @@ public:
 	void checkHeart()
 	{
 		auto nowTime = NOWTIME_MILLI;
-		for (auto it = clients.begin(); it != clients.end(); it++)
+		for (auto it = clients.begin(); it != clients.end();)
 		{
 			if (!it->second->checkHeart(nowTime))
 			{
 				serverEvent->OnLeave(it->second);
 				fd_read_changed = true;
 				std::lock_guard<std::mutex> lg(mtx);
-				clients.erase(it->first);
+				auto temp = it;
+				temp->second->setAlive(false);
+				clients.erase(temp->first);
+				it++;
+			}
+			else
+			{
 				it++;
 			}
 		}
@@ -127,6 +133,7 @@ public:
 						auto p = it->second;
 						serverEvent->OnLeave(p);
 						std::lock_guard<std::mutex> lg(mtx);
+						it->second->setAlive(false);
 						clients.erase(it->first);
 						fd_read_changed = true;
 					}
@@ -193,8 +200,12 @@ public:
 	}
 
 	//给客户端发消息
-	int sendMessage(SOCKET csock, Pack* msg)
+	int sendMessage(std::shared_ptr<CLIENT> c, Pack* msg)
 	{
+		if (INVALID_SOCKET == c->getSock() || !c->checkAlive())
+		{
+			return CMD_ERROR;
+		}
 		if (INVALID_SOCKET == ssock)
 		{
 			std::cout << "服务器套接字未初始化或无效" << std::endl;
@@ -203,7 +214,7 @@ public:
 		int sendLen = msg->LENGTH;
 		if (lastSendPos + sendLen >= SEND_BUF_SIZE)
 		{
-			int res = send(csock, sendBuf, lastSendPos, 0);
+			int res = send(c->getSock(), sendBuf, lastSendPos, 0);
 			if (SOCKET_ERROR == res)
 			{
 				std::cout << "发送数据包失败" << std::endl;
@@ -246,7 +257,7 @@ public:
 			PrivateMessagePack* pack = static_cast<PrivateMessagePack*>(pk);
 			std::cout << "转发私信 " << std::endl;
 			std::string sourceName = "user";
-			SOCKET target = 0;
+			std::shared_ptr<CLIENT> target;
 
 
 
@@ -256,9 +267,9 @@ public:
 			auto it = clients.begin();
 			for (it; it != clients.end(); it++)
 			{
-				if ((*it).second->getUserName() == pack->targetName)
+				if (it->second->getUserName() == pack->targetName)
 				{
-					target = (*it).first;
+					target = it->second;
 					break;
 				}
 			}
@@ -266,13 +277,14 @@ public:
 			strcpy(pack->targetName, c->getUserName().c_str());
 			if (it != clients.end())
 			{
+				
 				sendMessage(target, pack);
 			}
 			else
 			{
 				MessagePack pack1;
 				strcpy(pack1.message, "私信发送失败，目标用户不存在或已离线");
-				sendMessage(c->getSock(), &pack1);
+				sendMessage(c, &pack1);
 			}
 			break;
 		}
@@ -281,7 +293,7 @@ public:
 			MessagePack* pack = static_cast<MessagePack*>(pk);
 			std::cout << "从客户端(" << c->getSock() << ")收到的消息 :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
 			strcpy(pack->message, "消息已成功被服务器接收!");
-			sendMessage(c->getSock(), pack);
+			sendMessage(c, pack);
 			break;
 		}
 		case CMD_BROADCAST:
@@ -290,7 +302,7 @@ public:
 			std::cout << "广播消息" << std::endl;
 			for (auto c1 : clients)
 			{
-				sendMessage(c1.first, pack);
+				sendMessage(c1.second, pack);
 			}
 			break;
 		}
@@ -316,12 +328,12 @@ public:
 				std::cout << "用户" << oldName << "(" << c->getSock() << ")改名为" << userName << std::endl;
 				userName = "已成功更改名称，现在的昵称为 " + userName;
 				MessagePack pack1(userName.c_str());
-				sendMessage(c->getSock(), &pack1);
+				sendMessage(c, &pack1);
 			}
 			else
 			{
 				MessagePack pack1("重命名失败");
-				sendMessage(c->getSock(), &pack1);
+				sendMessage(c, &pack1);
 			}
 			break;
 		}
@@ -329,7 +341,7 @@ public:
 		{
 			recvPackCount++;
 			TestPack pack("dwadawd");
-			sendMessage(c->getSock(), &pack);
+			sendMessage(c, &pack);
 			break;
 		}
 		case CMD_HEART:

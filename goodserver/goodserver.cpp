@@ -24,7 +24,7 @@ int main()
 {
 	TCPServer server;
 	server.initSocket();
-	server.bindServer("127.0.0.1", 2324, 10);
+	server.bindServer("127.0.0.1", 2324, 2);
 	running = true;
 	std::thread tcmd(cmdThread, &server);
 	tcmd.detach();
@@ -32,4 +32,7 @@ int main()
 	{
 		server.OnRun();
 	}
+	
+
+	
 }

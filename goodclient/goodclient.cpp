@@ -2,8 +2,8 @@
 
 #include "selectTCPClient.hpp"
 #include <memory>
-const int clientNum = 100;
-const int threadNum = 5;
+const int clientNum = 1000;
+const int threadNum = 10;
 bool running = false;
 TCPClient* clients[clientNum];
 
@@ -92,7 +92,7 @@ void sendThread(int id)
 	HeartPack hpack;
 	while (running)
 	{
-		time_t nowTime = NOWTIME_MILLI;
+		time_t nowTime = NOWTIME_MILLI;                     
 		for (int i = begin; i < end; i++)
 		{
 			if (INVALID_SOCKET != clients[i]->getCsock())
@@ -100,8 +100,8 @@ void sendThread(int id)
 				clients[i]->onRun();
 				if (nowTime - clients[i]->getHeart() >= CLIENT_HEART_DEAD_TIME/2)
 				{
-					clients[i]->sendMessage(&hpack);
-					clients[i]->setHeart(nowTime);
+					//clients[i]->sendMessage(&hpack);
+					//clients[i]->setHeart(nowTime);
 				}
 				clients[i]->sendMessage(&pack);
 			}

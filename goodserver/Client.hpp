@@ -9,7 +9,7 @@ class CLIENT
 {
 public:
 	CLIENT(SOCKET csock, sockaddr_in csin, int userid, std::string username)
-		:sock(csock), sin(csin), lastBufPos(0), userID(userid), userName(username)
+		:sock(csock), sin(csin), lastBufPos(0), userID(userid), userName(username),isAlive(true)
 	{
 		dtHeart = NOWTIME_MILLI;
 	}
@@ -36,7 +36,8 @@ public:
 	inline void setUserName(std::string username) { userName = username; }
 	inline void resetHeart(){ dtHeart = NOWTIME_MILLI; }
 	inline bool checkHeart(time_t dt) { return dt - dtHeart < CLIENT_HEART_DEAD_TIME; }
-
+	inline bool checkAlive() { return isAlive; }
+	inline void setAlive(bool val) { isAlive = val; }
 private:
 	SOCKET sock;
 	sockaddr_in sin;
@@ -45,6 +46,7 @@ private:
 	int userID;
 	std::string userName;
 	time_t dtHeart;
+	bool isAlive;
 };
 
 
