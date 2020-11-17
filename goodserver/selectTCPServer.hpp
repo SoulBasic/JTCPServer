@@ -164,14 +164,14 @@ private:
 				count += s->recvPackCount;
 				s->recvPackCount = 0;
 			}
-			if (count == 0)return;
+			//if (count == 0)return;
 			float speed = static_cast<float>(count * sizeof(TestPack)) / 1048576.0f / t1;
 			std::cout << "" << t1 << " " << clients.size() << "个客户端收到了" << count << "个包，速度" << speed << "MB/s" << std::endl;
-			for (auto cs : cellServers)
-			{
-				std::cout << cs->getClientCount() << " ";
-			}
-			std::cout << "\n";
+			//for (auto cs : cellServers)
+			//{
+			//	std::cout << cs->getClientCount() << " ";
+			//}
+			//std::cout << "\n";
 			timeStamp.update();
 		}
 	}

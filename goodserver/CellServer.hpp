@@ -61,6 +61,7 @@ public:
 				fd_read_changed = true;
 				std::lock_guard<std::mutex> lg(mtx);
 				clients.erase(it->first);
+				it++;
 			}
 		}
 	}
@@ -138,7 +139,6 @@ public:
 			}
 
 #else
-
 			for (auto c : clients)
 			{
 				if (FD_ISSET(c.first, &fdRead))

@@ -35,15 +35,8 @@ public:
 	inline std::string getUserName() { return userName; }
 	inline void setUserName(std::string username) { userName = username; }
 	inline void resetHeart(){ dtHeart = NOWTIME_MILLI; }
-	bool checkHeart(time_t dt) 
-	{
-		if (dt - dtHeart >= CLIENT_HEART_DEAD_TIME)
-		{
-			std::cout << "心跳检测：客户端离开" << std::endl;
-			return false;
-		}
-		return true; 
-	}
+	inline bool checkHeart(time_t dt) { return dt - dtHeart < CLIENT_HEART_DEAD_TIME; }
+
 private:
 	SOCKET sock;
 	sockaddr_in sin;
