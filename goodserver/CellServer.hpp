@@ -1,4 +1,4 @@
-#ifndef _CellServer_HPP_
+ï»¿#ifndef _CellServer_HPP_
 #define _CellServer_HPP_
 
 #include "INetEvent.hpp"
@@ -47,7 +47,7 @@ public:
 
 	}
 
-	//ÅĞ¶Ï·şÎñÆ÷ÊÇ·ñÕı³£ÔËĞĞÖĞ
+	//åˆ¤æ–­æœåŠ¡å™¨æ˜¯å¦æ­£å¸¸è¿è¡Œä¸­
 	inline bool active() { return ssock != INVALID_SOCKET; }
 
 	void checkHeart()
@@ -109,7 +109,7 @@ public:
 			int res = select(maxSocket + 1, &fdRead, nullptr, nullptr, &t);
 			if (res < 0)
 			{
-				std::cout << "selectÄ£ĞÍÎ´Öª´íÎó£¬ÈÎÎñ½áÊø" << std::endl;
+				std::cout << "selectæ¨¡å‹æœªçŸ¥é”™è¯¯ï¼Œä»»åŠ¡ç»“æŸ" << std::endl;
 				ssock = INVALID_SOCKET;
 				return false;
 			}
@@ -122,7 +122,7 @@ public:
 				{
 					if (CLIENT_DISCONNECT == recvPack(it->second))
 					{
-						//std::cout << "¿Í»§" << it->second->getUserName() << "(csock=" << it->second->getUserName() << ")ÒÑ¶Ï¿ªÁ¬½Ó" << std::endl;
+						//std::cout << "å®¢æˆ·" << it->second->getUserName() << "(csock=" << it->second->getUserName() << ")å·²æ–­å¼€è¿æ¥" << std::endl;
 						auto p = it->second;
 						serverEvent->OnLeave(p);
 						std::lock_guard<std::mutex> lg(mtx);
@@ -132,7 +132,7 @@ public:
 				}
 				else
 				{
-					std::cout << "Ææ¹ÖµÄÇé¿ö" << std::endl;
+					std::cout << "å¥‡æ€ªçš„æƒ…å†µ" << std::endl;
 				}
 
 			}
@@ -145,7 +145,7 @@ public:
 				{
 					if (CLIENT_DISCONNECT == recvPack(c.second))
 					{
-						std::cout << "¿Í»§" << c.second->getUserName() << "(csock=" << c.second->getUserName() << ")ÒÑ¶Ï¿ªÁ¬½Ó" << std::endl;
+						std::cout << "å®¢æˆ·" << c.second->getUserName() << "(csock=" << c.second->getUserName() << ")å·²æ–­å¼€è¿æ¥" << std::endl;
 						auto p = c.second;
 						serverEvent->OnLeave(p);
 						std::lock_guard<std::mutex> lg(mtx);
@@ -165,7 +165,7 @@ public:
 
 	}
 
-	//½ÓÊÕ²¢´¦ÀíÊı¾İ°ü
+	//æ¥æ”¶å¹¶å¤„ç†æ•°æ®åŒ…
 	int recvPack(CLIENT* c)
 	{
 		SOCKET csock = c->getSock();
@@ -192,12 +192,12 @@ public:
 		return CMD_SUCCESS;
 	}
 
-	//¸ø¿Í»§¶Ë·¢ÏûÏ¢
+	//ç»™å®¢æˆ·ç«¯å‘æ¶ˆæ¯
 	int sendMessage(SOCKET csock, Pack* msg)
 	{
 		if (INVALID_SOCKET == ssock)
 		{
-			std::cout << "·şÎñÆ÷Ì×½Ó×ÖÎ´³õÊ¼»¯»òÎŞĞ§" << std::endl;
+			std::cout << "æœåŠ¡å™¨å¥—æ¥å­—æœªåˆå§‹åŒ–æˆ–æ— æ•ˆ" << std::endl;
 			return CMD_ERROR;
 		}
 		int sendLen = msg->LENGTH;
@@ -206,12 +206,12 @@ public:
 			int res = send(csock, sendBuf, lastSendPos, 0);
 			if (SOCKET_ERROR == res)
 			{
-				std::cout << "·¢ËÍÊı¾İ°üÊ§°Ü" << std::endl;
+				std::cout << "å‘é€æ•°æ®åŒ…å¤±è´¥" << std::endl;
 				return CMD_ERROR;
 			}
 			else
 			{
-				//std::cout << "·¢ËÍÊı¾İ°üto(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
+				//std::cout << "å‘é€æ•°æ®åŒ…to(" << csock << " ) " << msg->CMD << " " << msg->LENGTH << std::endl;
 			}
 			lastSendPos = msg->LENGTH;
 			memcpy(sendBuf, msg, msg->LENGTH);
@@ -244,7 +244,7 @@ public:
 		case CMD_PRIVATEMESSAGE:
 		{
 			PrivateMessagePack* pack = static_cast<PrivateMessagePack*>(pk);
-			std::cout << "×ª·¢Ë½ĞÅ " << std::endl;
+			std::cout << "è½¬å‘ç§ä¿¡ " << std::endl;
 			std::string sourceName = "user";
 			SOCKET target = 0;
 
@@ -271,7 +271,7 @@ public:
 			else
 			{
 				MessagePack pack1;
-				strcpy(pack1.message, "Ë½ĞÅ·¢ËÍÊ§°Ü£¬Ä¿±êÓÃ»§²»´æÔÚ»òÒÑÀëÏß");
+				strcpy(pack1.message, "ç§ä¿¡å‘é€å¤±è´¥ï¼Œç›®æ ‡ç”¨æˆ·ä¸å­˜åœ¨æˆ–å·²ç¦»çº¿");
 				sendMessage(c->getSock(), &pack1);
 			}
 			break;
@@ -279,15 +279,15 @@ public:
 		case CMD_MESSAGE:
 		{
 			MessagePack* pack = static_cast<MessagePack*>(pk);
-			std::cout << "´Ó¿Í»§¶Ë(" << c->getSock() << ")ÊÕµ½µÄÏûÏ¢ :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
-			strcpy(pack->message, "ÏûÏ¢ÒÑ³É¹¦±»·şÎñÆ÷½ÓÊÕ!");
+			std::cout << "ä»å®¢æˆ·ç«¯(" << c->getSock() << ")æ”¶åˆ°çš„æ¶ˆæ¯ :CMD=" << pack->CMD << " LENGTH=" << pack->LENGTH << " DATA=" << pack->message << std::endl;
+			strcpy(pack->message, "æ¶ˆæ¯å·²æˆåŠŸè¢«æœåŠ¡å™¨æ¥æ”¶!");
 			sendMessage(c->getSock(), pack);
 			break;
 		}
 		case CMD_BROADCAST:
 		{
 			BroadcastPack* pack = static_cast<BroadcastPack*>(pk);
-			std::cout << "¹ã²¥ÏûÏ¢" << std::endl;
+			std::cout << "å¹¿æ’­æ¶ˆæ¯" << std::endl;
 			for (auto c1 : clients)
 			{
 				sendMessage(c1.first, pack);
@@ -313,14 +313,14 @@ public:
 			if (it != clients.end())
 			{
 
-				std::cout << "ÓÃ»§" << oldName << "(" << c->getSock() << ")¸ÄÃûÎª" << userName << std::endl;
-				userName = "ÒÑ³É¹¦¸ü¸ÄÃû³Æ£¬ÏÖÔÚµÄêÇ³ÆÎª " + userName;
+				std::cout << "ç”¨æˆ·" << oldName << "(" << c->getSock() << ")æ”¹åä¸º" << userName << std::endl;
+				userName = "å·²æˆåŠŸæ›´æ”¹åç§°ï¼Œç°åœ¨çš„æ˜µç§°ä¸º " + userName;
 				MessagePack pack1(userName.c_str());
 				sendMessage(c->getSock(), &pack1);
 			}
 			else
 			{
-				MessagePack pack1("ÖØÃüÃûÊ§°Ü");
+				MessagePack pack1("é‡å‘½åå¤±è´¥");
 				sendMessage(c->getSock(), &pack1);
 			}
 			break;
@@ -339,7 +339,7 @@ public:
 		}
 		default:
 		{
-			std::cout << "ÎŞ·¨½âÎöµÄÏûÏ¢:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
+			std::cout << "æ— æ³•è§£æçš„æ¶ˆæ¯:CMD=" << pk->CMD << " length=" << pk->LENGTH << std::endl;
 			break;
 		}
 		}

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #ifndef _CLIENT_HPP_
 #define _CLIENT_HPP_
@@ -39,7 +39,7 @@ public:
 	{
 		if (dt - dtHeart >= CLIENT_HEART_DEAD_TIME)
 		{
-			std::cout << "ÐÄÌø¼ì²â£º¿Í»§¶ËÀë¿ª" << std::endl;
+			std::cout << "å¿ƒè·³æ£€æµ‹ï¼šå®¢æˆ·ç«¯ç¦»å¼€" << std::endl;
 			return false;
 		}
 		return true; 

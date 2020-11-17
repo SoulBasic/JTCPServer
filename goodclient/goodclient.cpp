@@ -2,7 +2,7 @@
 
 #include "selectTCPClient.hpp"
 
-const int clientNum = 50;
+const int clientNum = 100;
 const int threadNum = 5;
 bool running = false;
 TCPClient* clients[clientNum];
@@ -81,7 +81,7 @@ void sendThread(int id)
 	for (int i = begin; i < end; i++)
 	{
 		if (!running)return;
-		clients[i] = new TCPClient("127.0.0.1",2324);
+		clients[i] = new TCPClient("192.168.199.132",2324);
 	}
 	for (int i = begin; i < end; i++)
 	{
