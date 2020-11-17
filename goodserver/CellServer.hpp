@@ -145,7 +145,7 @@ public:
 				{
 					if (CLIENT_DISCONNECT == recvPack(c.second))
 					{
-						std::cout << "客户" << c.second->getUserName() << "(csock=" << c.second->getUserName() << ")已断开连接" << std::endl;
+						//std::cout << "客户" << c.second->getUserName() << "(csock=" << c.second->getUserName() << ")已断开连接" << std::endl;
 						auto p = c.second;
 						serverEvent->OnLeave(p);
 						std::lock_guard<std::mutex> lg(mtx);

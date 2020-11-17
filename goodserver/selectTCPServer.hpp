@@ -138,10 +138,9 @@ public:
 		{
 			delete s;
 		}
-
+		std::cout << "terminal" << std::endl;
 #ifdef _WIN32
 		
-
 		closesocket(ssock);
 		WSACleanup();
 #else //Linux
