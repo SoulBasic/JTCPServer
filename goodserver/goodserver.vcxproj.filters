@@ -18,6 +18,9 @@
     <ClCompile Include="goodserver.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="CellServer.hpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="selectTCPServer.hpp">
@@ -27,6 +30,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\celltimestamp.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="INetEvent.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Client.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Global.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

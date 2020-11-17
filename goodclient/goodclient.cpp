@@ -1,16 +1,9 @@
-﻿// goodclient.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
-//
+﻿
 
-#include <iostream>
-#include <thread>
 #include "selectTCPClient.hpp"
-#include <string>
-#include <atomic>
-#include <bitset>
 
-
-const int clientNum = 1000;
-const int threadNum = 10;
+const int clientNum = 50;
+const int threadNum = 5;
 bool running = false;
 TCPClient* clients[clientNum];
 
@@ -69,6 +62,7 @@ void cmdThread(TCPClient* c)
 	}
 }
 
+
 void recvThread(TCPClient* c)
 {
 	while (c->active())
@@ -87,7 +81,7 @@ void sendThread(int id)
 	for (int i = begin; i < end; i++)
 	{
 		if (!running)return;
-		clients[i] = new TCPClient("3.114.135.137",2324);
+		clients[i] = new TCPClient("127.0.0.1",2324);
 	}
 	for (int i = begin; i < end; i++)
 	{
@@ -95,29 +89,32 @@ void sendThread(int id)
 	}
 
 	TestPack pack("123213213");
+	HeartPack hpack;
 	while (running)
 	{
+		time_t nowTime = NOWTIME_MILLI;
 		for (int i = begin; i < end; i++)
 		{
 			if (INVALID_SOCKET != clients[i]->getCsock())
 			{
-				//clients[i]->onRun();
+				clients[i]->onRun();
+				if (nowTime - clients[i]->getHeart() >= CLIENT_HEART_DEAD_TIME/2)
+				{
+					clients[i]->sendMessage(&hpack);
+					clients[i]->setHeart(nowTime);
+				}
 				clients[i]->sendMessage(&pack);
 			}
-
 		}
 	}
-
-
 
 	for (int i = begin; i < end; i++)
 	{
 		clients[i]->terminal();
 		delete clients[i];
 	}
-
-
 }
+
 
 int main()
 {
@@ -130,7 +127,6 @@ int main()
 	//tcmd.detach();
 	//std::thread trecv(recvThread,&c);
 	//trecv.detach();
-
 	for (int i = 1; i <= threadNum; i++)
 	{
 		std::thread t1(sendThread, i);

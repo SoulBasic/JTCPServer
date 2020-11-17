@@ -26,5 +26,11 @@
     <ClInclude Include="..\Pack.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\Global.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\celltimestamp.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

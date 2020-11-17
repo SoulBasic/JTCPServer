@@ -9,6 +9,7 @@
 #define CMD_BROADCAST 104
 #define CMD_NAME 105
 #define CMD_TEST 106
+#define CMD_HEART 107
 
 
 class Header
@@ -124,6 +125,16 @@ public:
 		strcpy(message, msg);
 		LENGTH = sizeof(TestPack);
 		CMD = CMD_TEST;
+	}
+};
+
+class HeartPack : public Pack
+{
+public:
+	HeartPack()
+	{
+		LENGTH = sizeof(HeartPack);
+		CMD = CMD_HEART;
 	}
 };
 

@@ -154,11 +154,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CellServer.hpp" />
     <ClCompile Include="goodserver.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\celltimestamp.hpp" />
+    <ClInclude Include="..\Global.hpp" />
     <ClInclude Include="..\Pack.hpp" />
+    <ClInclude Include="Client.hpp" />
+    <ClInclude Include="INetEvent.hpp" />
     <ClInclude Include="selectTCPServer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

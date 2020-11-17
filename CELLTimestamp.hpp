@@ -2,6 +2,11 @@
 #ifndef _CELLTimestamp_HPP_
 #define _CELLTimestamp_HPP_
 #include <chrono>
+#include <functional>
+
+
+#define NOWTIME_MILLI std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+
 
 class CELLTimestamp
 {

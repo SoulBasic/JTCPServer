@@ -1,27 +1,8 @@
 ﻿#ifndef _SELECTTCPClient_HPP_
 #define _SELECTTCPClient_HPP_
 
-#include <iostream>
 #include "../Pack.hpp"
-#ifdef _WIN32
-	#include <WinSock2.h>
-	#include <Windows.h>
-#else//Linux
-	#include <unistd.h>
-	#include <arpa/inet.h>
-	#include <string.h>
-	#define SOCKET int
-	#define INVALID_SOCKET  (SOCKET)(~0)
-	#define SOCKET_ERROR            (-1)
-#endif 
-
-#define CLIENT_ERROR -1
-#define CLIENT_SUCCESS 1
-
-#define CLIENT_DISCONNECT -1
-
-#define RECV_BUF_SIZE 40960
-#define MSG_BUF_SIZE 409600
+#include "../Global.hpp"
 
 class TCPClient
 {
@@ -31,8 +12,10 @@ private:
 	char recvBuf[RECV_BUF_SIZE] = {};
 	char msgBuf[MSG_BUF_SIZE] = {};
 	int lastBufPos = 0;
+	time_t lastHeart;
 public:
-
+	inline time_t getHeart() { return lastHeart; }
+	inline void setHeart(time_t t) { lastHeart = t; }
 	inline SOCKET getCsock() { return csock; }
 	void setSsin(const char* ip, unsigned short port)
 	{
@@ -43,11 +26,12 @@ public:
 		ssin.sin_addr.S_un.S_addr = inet_addr(ip);
 #else
 		ssin.sin_addr.s_addr = inet_addr(ip);
-#endif 
+#endif
 	}
 public:
 	TCPClient()
 	{
+		lastHeart = NOWTIME_MILLI;
 		csock = INVALID_SOCKET;
 		ssin = {};
 	}

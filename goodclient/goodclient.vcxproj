@@ -156,6 +156,8 @@
     <ClCompile Include="goodclient.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\celltimestamp.hpp" />
+    <ClInclude Include="..\Global.hpp" />
     <ClInclude Include="..\Pack.hpp" />
     <ClInclude Include="selectTCPClient.hpp" />
   </ItemGroup>
