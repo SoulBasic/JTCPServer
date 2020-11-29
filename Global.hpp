@@ -12,7 +12,8 @@
 #include <thread>
 #include <string>
 #include <memory>
-
+#include <csignal>
+#include <cstring>
 #include "Pack.hpp"
 #include "CELLTimestamp.hpp"
 
@@ -23,7 +24,6 @@
 #else//Linux
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <string.h>
 #define SOCKET int
 #define INVALID_SOCKET  (SOCKET)(~0)
 #define SOCKET_ERROR            (-1)
